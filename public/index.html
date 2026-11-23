@@ -441,7 +441,8 @@ document.addEventListener("keydown",function(e){
   if(e.target.tagName==="INPUT")return;
   keys[e.key]=1;
   if(e.key.indexOf("Arrow")===0||e.key===" ")e.preventDefault();
-  if(S&&S.ch&&"123".indexOf(e.key)>=0&&e.key.length===1)send({t:"pick",i:+e.key-1});
+  var slot={"Digit1":0,"Numpad1":0,"&":0,"1":0,"Digit2":1,"Numpad2":1,"é":1,"2":1,"Digit3":2,"Numpad3":2,'"':2,"3":2}[e.code]||{"&":0,"1":0,"é":1,"2":1,'"':2,"3":2}[e.key];
+  if(S&&S.ch&&slot!==undefined)send({t:"pick",i:slot});
   if(e.key===" "||e.key==="Shift")send({t:"dash"});
   if(S&&S.st==="over"&&e.key==="Enter")send({t:"restart"});
 });
