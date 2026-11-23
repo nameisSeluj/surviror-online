@@ -60,7 +60,7 @@ canvas{
   display:flex;
   align-items:center;
   justify-content:center;
-  background:rgba(12,10,8,.8);
+  background:rgba(12,10,8,.82);
   border-radius:8px;
   padding:14px;
   z-index:10;
@@ -357,7 +357,10 @@ var W=800,H=560,cv=document.getElementById("c"),ctx=cv.getContext("2d"),ov=docum
 var best=0,ws,S=null,vis=[],keys={},ptr=null,PA=[],DEC=[],RINGS=[],FLOATS=[],GHOSTS=[],TR=[[],[],[],[]],tt=0,shake=0,lastHp=[],lastE=[],flashE={},BG=null,ovKey="",pkKey="",invKey="",last=0,lastIn="",idle=0;
 var FONT='"Trebuchet MS","Segoe UI",sans-serif',SERIF='Georgia,"Times New Roman",serif';
 var CO=["#59b878","#5b8fd9","#e09a3e","#d96277"],CO_DARK=["#2b663f","#2c4f87","#8c5a19","#853040"];
-var EC=["#c94a4a","#d97b38","#7e52a0","#cbb042","#9e2a3b"],ER=[11,8,17,10,30];
+
+// 10 types : 0 Marcheur, 1 Coureur, 2 Blindé, 3 Tireur, 4 Boss, 5 Spectre, 6 Kamikaze, 7 Bélier, 8 Artilleur, 9 Invocateur
+var EC=["#c94a4a","#d97b38","#7e52a0","#cbb042","#9e2a3b","#4fb3bf","#ff6b2b","#b8432e","#4e8c6f","#8e44ad"];
+var ER=[11,8,17,10,30,10,9,13,12,13];
 var BOSS_COLS=["#9e2a3b","#c4492b","#3b7a9e","#7a3b9e","#b88628"];
 var UP_SHORT=["Dégâts","Cadence","Tir multi","Perforation","Vitesse","Aimant","Régén.","Lames","Armure"];
 var COMBO_DEFS=[
@@ -463,8 +466,8 @@ function setOv(key,html,fn){
 }
 function how(){
   return '<div class="how">'+
-    '<div><b>Déplacement</b><br>Flèches / ZQSD ou glisser</div>'+
-    '<div><b>Esquive</b><br>Espace ou double-tap</div>'+
+    '<div><b>Objectif : Vague 50</b><br>Assaut multi-boss dès la vague 45</div>'+
+    '<div><b>Déplacement & Esquive</b><br>Flèches / ZQSD · Espace pour dash</div>'+
     '<div><b>Combos (max 2)</b><br>Cumule leurs niveaux pour les renforcer</div>'+
     '<div><b>Combo de Combo</b><br>Cumule 2 combos actifs pour les fusionner</div>'+
   '</div>';
@@ -473,7 +476,7 @@ function lobby(msg){
   pauseBtn.style.display="none";
   invBar.style.display="none";
   setOv("L"+(msg||""),
-    '<div class="pn"><h2>Survivor Squad</h2><p>Survivez aux vagues jusqu’à 4 joueurs en coopération.</p>'+how()+
+    '<div class="pn"><h2>Survivor Squad</h2><p>Survivez jusqu’à la vague 50 en escouade (1 à 4 joueurs).</p>'+how()+
     (msg?'<p style="color:#e5a93c;font-weight:700">'+msg+'</p>':'')+
     '<div class="row"><input id="rc" maxlength="6" placeholder="CODE" value="'+room+'"><button class="main" id="go">Entrer</button></div>'+
     '<p>Laisse vide pour générer un code de salle.</p></div>',
@@ -531,7 +534,7 @@ function renderInventory(d){
 
 function onState(d){
   d.ev.forEach(function(v){
-    if(v[2]===5){
+    if(v[2]===5&&v.length>=6){
       var cname=COMBO_DEFS[v[4]]?COMBO_DEFS[v[4]].name:"Combo";
       var clvl=v[5]||1;
       burst(v[0],v[1],"#e5a93c",26,false);
@@ -540,7 +543,7 @@ function onState(d){
       if(v[3]===d.me)toast((clvl>1?"Combo cumulé Niv."+clvl+" : ":"Combo : ")+cname,"#e5a93c");
       return;
     }
-    if(v[2]===6){
+    if(v[2]===6&&v.length>=6){
       var sname=SUPER_DEFS[v[4]]?SUPER_DEFS[v[4]].name:"Fusion";
       var slvl=v[5]||1;
       burst(v[0],v[1],"#e05656",42,false);
@@ -553,9 +556,11 @@ function onState(d){
       }
       return;
     }
-    burst(v[0],v[1],EC[v[2]],v[2]===4?45:9,true);
-    addRing(v[0],v[1],v[2]===4?85:26,EC[v[2]],v[2]===4?4:2);
+    var col=EC[v[2]]||"#c94a4a";
+    burst(v[0],v[1],col,v[2]===4?45:(v[2]===6?24:9),v[2]!==5&&v[2]!==9);
+    addRing(v[0],v[1],v[2]===4?85:(v[2]===6?58:26),col,v[2]===4?4:2);
     if(v[2]===4)shake=11;
+    if(v[2]===6)shake=5;
   });
 
   d.p.forEach(function(p,i){
@@ -578,7 +583,10 @@ function onState(d){
   var wasB=S&&S.E.some(function(e){return e[2]===4}),isB=d.E.some(function(e){return e[2]===4});
   if(S&&d.st==="play"){
     if(d.wv>S.wv){
-      toast(d.wv%5===0?"Vague "+d.wv+" — Boss !":"Vague "+d.wv,d.wv%5===0?"#d94e4e":"#e5a93c");
+      var msg=d.wv===50?"VAGUE FINALE 50 — LES 5 BOSS !"
+        :(d.wv>=45?"Vague "+d.wv+" — Assaut Multi-Boss !"
+        :(d.wv%5===0?"Vague "+d.wv+" — Boss !":"Vague "+d.wv));
+      toast(msg,(d.wv>=45||d.wv%5===0)?"#d94e4e":"#e5a93c");
       addRing(W/2,H/2,240,"rgba(229,169,60,.35)",2);
     }
     if(wasB&&!isB)toast("Boss vaincu — Alliés relevés","#e5a93c");
@@ -618,13 +626,21 @@ function onState(d){
         document.getElementById("st").onclick=function(){send({t:"start"})};
       }
     );
+  }else if(d.st==="win"){
+    setOv("win",
+      '<div class="pn"><h2 style="color:#59b878">Victoire — Vague 50 !</h2>'+
+      '<p class="rec">L’escouade a survécu aux 50 vagues et vaincu les 5 boss !</p>'+
+      '<div class="stats"><div><b>50 / 50</b><small>VAGUES</small></div><div><b>'+fmt(d.tm)+'</b><small>TEMPS TOTAL</small></div><div><b>'+d.k+'</b><small>ÉLIMINÉS</small></div></div>'+
+      '<button class="main" id="rs">Rejouer [Entrée]</button></div>',
+      function(){document.getElementById("rs").onclick=function(){send({t:"restart"})}}
+    );
   }else if(d.st==="over"){
     var rec=d.tm>best;
     if(rec){best=d.tm;try{localStorage.setItem("survivor-best",String(Math.floor(d.tm)))}catch(e){}}
     setOv("o",
       '<div class="pn"><h2>Défaite</h2>'+
       (rec?'<p class="rec">Nouveau record de survie</p>':'<p>Record : '+fmt(best)+'</p>')+
-      '<div class="stats"><div><b>Vague '+d.wv+'</b><small>ATTEINTE</small></div><div><b>'+fmt(d.tm)+'</b><small>SURVIE</small></div><div><b>'+d.k+'</b><small>ÉLIMINÉS</small></div></div>'+
+      '<div class="stats"><div><b>Vague '+d.wv+'/50</b><small>ATTEINTE</small></div><div><b>'+fmt(d.tm)+'</b><small>SURVIE</small></div><div><b>'+d.k+'</b><small>ÉLIMINÉS</small></div></div>'+
       '<button class="main" id="rs">Rejouer [Entrée]</button></div>',
       function(){document.getElementById("rs").onclick=function(){send({t:"restart"})}}
     );
@@ -633,7 +649,7 @@ function onState(d){
     setOv("mpz_"+d.pby+"_"+d.wv+"_"+d.l,
       '<div class="pn"><h2>Jeu en pause</h2>'+
       '<p>Partie mise en pause par '+by+'.</p>'+
-      '<div class="stats"><div><b>Vague '+d.wv+'</b><small>EN COURS</small></div><div><b>Niv. '+d.l+'</b><small>ESCOUADE</small></div><div><b>'+fmt(d.tm)+'</b><small>TEMPS</small></div></div>'+
+      '<div class="stats"><div><b>Vague '+d.wv+'/50</b><small>EN COURS</small></div><div><b>Niv. '+d.l+'</b><small>ESCOUADE</small></div><div><b>'+fmt(d.tm)+'</b><small>TEMPS</small></div></div>'+
       '<button class="main" id="resume">Reprendre [P]</button></div>',
       function(){document.getElementById("resume").onclick=function(){send({t:"pause"})}}
     );
@@ -675,7 +691,7 @@ document.addEventListener("keydown",function(e){
   var slot=pickMap[e.code]!==undefined?pickMap[e.code]:pickMap[e.key];
   if(S&&S.ch&&slot!==undefined)send({t:"pick",i:slot});
   if(e.key===" "||e.key==="Shift")send({t:"dash"});
-  if(S&&S.st==="over"&&e.key==="Enter")send({t:"restart"});
+  if(S&&(S.st==="over"||S.st==="win")&&e.key==="Enter")send({t:"restart"});
 });
 document.addEventListener("keyup",function(e){keys[e.key]=0});
 function pos(e){var r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
@@ -696,14 +712,15 @@ setInterval(function(){
 
 /* ---------- Dessin des personnages & ennemis ---------- */
 function drawEnemy(e,a){
-  var x=e[0],y=e[1],k=e[2],bk=e[4]||0;
-  var r=k===4?(bk===4?35:(bk===3?34:(bk===1?26:30))):ER[k];
-  var c=k===4?BOSS_COLS[bk]:EC[k];
+  var x=e[0],y=e[1],k=e[2],bk=e[4]||0,charging=e[5]||0;
+  var r=k===4?(bk===4?35:(bk===3?34:(bk===1?26:30))):(ER[k]||11);
+  var c=k===4?BOSS_COLS[bk]:(EC[k]||"#c94a4a");
   var key=k+"_"+Math.round(x/25)+"_"+Math.round(y/25);
   var hit=flashE[key]>0;
   var phase=x*.09+y*.05;
-  var step=S&&S.pz?0:Math.sin(tt*(k===1?20:12)+phase);
-  var tilt=S&&S.pz?0:Math.cos(tt*(k===1?10:6)+phase)*.09;
+  var fast=(k===1||k===6||charging);
+  var step=S&&S.pz?0:Math.sin(tt*(fast?22:12)+phase);
+  var tilt=S&&S.pz?0:Math.cos(tt*(fast?11:6)+phase)*.09;
 
   ctx.fillStyle="rgba(8,6,5,.48)";
   ctx.beginPath();ctx.ellipse(x,y+r*.85,r*(.92+step*.05),r*.36,0,0,6.283);ctx.fill();
@@ -713,6 +730,10 @@ function drawEnemy(e,a){
   ctx.rotate(tilt);
   ctx.scale(1+step*.08,1-step*.08);
 
+  // Spectre : translucide avec aura cyan
+  if(k===5)ctx.globalAlpha=0.72+Math.sin(tt*8+phase)*0.15;
+
+  // Pointes / ornements selon le type
   if(k===2||k===4){
     ctx.fillStyle=hit?"#fff":(bk===4?"#e5a93c":"#2a1e1c");
     ctx.strokeStyle="#0d0a08";ctx.lineWidth=2;
@@ -725,9 +746,33 @@ function drawEnemy(e,a){
       ctx.lineTo(Math.cos(an+.22)*r*.85,Math.sin(an+.22)*r*.85);
       ctx.closePath();ctx.fill();ctx.stroke();
     }
+  }else if(k===7){
+    // Cornes de Bélier orientées vers la cible
+    ctx.fillStyle=hit?"#fff":"#f0e6d6";ctx.strokeStyle="#120d0a";ctx.lineWidth=2;
+    for(var h=-1;h<=1;h+=2){
+      var ha=a+h*.55;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ha-.25)*r*.7,Math.sin(ha-.25)*r*.7);
+      ctx.lineTo(Math.cos(ha)*r*1.55,Math.sin(ha)*r*1.55);
+      ctx.lineTo(Math.cos(ha+.25)*r*.7,Math.sin(ha+.25)*r*.7);
+      ctx.closePath();ctx.fill();ctx.stroke();
+    }
+  }else if(k===8){
+    // Canon d'Artilleur
+    ctx.save();ctx.rotate(a);
+    ctx.fillStyle="#28221c";ctx.strokeStyle="#120d0a";ctx.lineWidth=2;
+    rr(2,-5,r+5,10,2);ctx.fill();ctx.stroke();
+    ctx.restore();
   }
 
-  ctx.fillStyle=hit?"#fff":c;
+  // Corps principal
+  if(k===6){
+    // Kamikaze : pulsation explosive orange/jaune
+    var pulse=Math.floor(tt*14)%2;
+    ctx.fillStyle=hit?"#fff":(pulse?"#ff9f1c":"#e04819");
+  }else{
+    ctx.fillStyle=hit?"#fff":c;
+  }
   ctx.beginPath();ctx.arc(0,0,r,0,6.283);ctx.fill();
 
   if(!hit){
@@ -735,32 +780,33 @@ function drawEnemy(e,a){
     ctx.beginPath();ctx.arc(0,r*.2,r*.88,0.1,Math.PI-0.1);ctx.fill();
   }
 
-  ctx.strokeStyle="#120d0a";
-  ctx.lineWidth=k===4?3.2:2.2;
+  ctx.strokeStyle=charging?"#ffd166":"#120d0a";
+  ctx.lineWidth=k===4?3.2:(charging?3:2.2);
   ctx.stroke();
 
-  if(k===4&&!hit){
-    ctx.strokeStyle=bk===4?"#ffd166":"rgba(0,0,0,.35)";
+  if((k===4||k===9)&&!hit){
+    ctx.strokeStyle=k===9?"#d8a7ff":(bk===4?"#ffd166":"rgba(0,0,0,.35)");
     ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(0,0,r*.58,0,6.283);ctx.stroke();
+    ctx.beginPath();ctx.arc(0,0,r*.55,0,6.283);ctx.stroke();
   }
 
   if(!hit){
     for(var s=-1;s<=1;s+=2){
       var ex=Math.cos(a)*r*.38+Math.cos(a+1.57)*s*r*.35;
       var ey=Math.sin(a)*r*.38+Math.sin(a+1.57)*s*r*.35;
-      ctx.fillStyle=k===4?"#ffd166":"#f5ebd6";
+      ctx.fillStyle=(k===4||k===6)?"#ffd166":"#f5ebd6";
       ctx.beginPath();ctx.arc(ex,ey,r*.24,0,6.283);ctx.fill();
       ctx.fillStyle="#120d0a";
       ctx.beginPath();ctx.arc(ex+Math.cos(a)*r*.08,ey+Math.sin(a)*r*.08,r*.12,0,6.283);ctx.fill();
     }
   }
+  ctx.globalAlpha=1;
   ctx.restore();
 
-  if(k===2){
-    ctx.fillStyle="#120d0a";rr(x-r-1,y-r-14,r*2+2,6,2);ctx.fill();
+  if(k===2||k===7||k===9){
+    ctx.fillStyle="#120d0a";rr(x-r-1,y-r-14,r*2+2,5,2);ctx.fill();
     ctx.fillStyle="#d94e4e";
-    rr(x-r,y-r-13,Math.max(2,r*2*e[3]/100),4,1);ctx.fill();
+    rr(x-r,y-r-13,Math.max(2,r*2*e[3]/100),3,1);ctx.fill();
   }
 }
 
@@ -987,20 +1033,20 @@ function draw(){
     });
 
     ctx.fillStyle="#e5a93c";ctx.font="bold 22px "+SERIF;ctx.textAlign="center";
-    ctx.fillText("VAGUE "+S.wv,W/2,33);
+    ctx.fillText("VAGUE "+S.wv+" / "+(S.mw||50),W/2,33);
     ctx.fillStyle="#cbbba6";ctx.font="bold 11.5px "+FONT;
     var sub=S.rem>0?("Restants : "+S.rem+"  |  Niv. "+S.l):("Vague nettoyée  |  Niv. "+S.l);
     ctx.fillText(sub,W/2,50);
 
     if(S.bn){
-      var bw=320,bx=(W-bw)/2,by=66;
+      var bw=360,bx=(W-bw)/2,by=66;
       rr(bx,by,bw,16,4);ctx.fillStyle="#161310";ctx.fill();
       if(S.bh>0){
         rr(bx+2,by+2,Math.max(4,(bw-4)*S.bh/100),12,2);
         ctx.fillStyle="#d94e4e";ctx.fill();
       }
       rr(bx,by,bw,16,4);ctx.strokeStyle="#e5a93c";ctx.lineWidth=2;ctx.stroke();
-      ctx.fillStyle="#f0e6d6";ctx.font="bold 10px "+FONT;ctx.textAlign="center";
+      ctx.fillStyle="#f0e6d6";ctx.font="bold 9.5px "+FONT;ctx.textAlign="center";
       ctx.fillText(S.bn.toUpperCase()+" — "+S.bh+"%",W/2,by+12);
     }else if(me&&me[15]){
       ctx.textAlign="center";ctx.font="bold 12px "+FONT;
