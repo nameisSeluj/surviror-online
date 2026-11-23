@@ -955,7 +955,7 @@ function drawPlayer(p,i,v,aimAngle){
   ctx.fillStyle="#4a423a";ctx.strokeStyle="#120d0a";ctx.lineWidth=2;
   rr(4-kick,-3,13,6,2);ctx.fill();ctx.stroke();
   if((v.flash||0)>0){
-    ctx.fillStyle="#ffd166";
+    ctx.fillStyle=c;
     ctx.beginPath();ctx.arc(19-kick,0,4.5*v.flash,0,6.283);ctx.fill();
   }
   ctx.restore();
@@ -1050,10 +1050,10 @@ function draw(){
     });
 
     S.B.forEach(function(b){
-      var hv=b[5];
+      var hv=b[5],col=CO[b[4]%4];
       ctx.strokeStyle="#120d0a";ctx.lineWidth=hv?6.5:5;ctx.lineCap="round";
       ctx.beginPath();ctx.moveTo(b[0]-b[2]*.034,b[1]-b[3]*.034);ctx.lineTo(b[0],b[1]);ctx.stroke();
-      ctx.strokeStyle=hv?"#ffd166":CO[b[4]%4];ctx.lineWidth=hv?3.5:2.5;
+      ctx.strokeStyle=col;ctx.lineWidth=hv?3.8:2.5;
       ctx.beginPath();ctx.moveTo(b[0]-b[2]*.034,b[1]-b[3]*.034);ctx.lineTo(b[0],b[1]);ctx.stroke();
     });
 
