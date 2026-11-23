@@ -52,7 +52,7 @@ const hpScale=w=>Math.pow(1.45,Math.floor((Math.max(1,w)-1)/5));
 const mkP=(ws,i)=>{
  const sp=SPAWNS[i%4];
  return {ws,i,x:W/2+sp[0],y:H/2+sp[1],r:11,hp:100,max:100,down:0,rev:0,inv:0,dx:0,dy:0,cd:0,dc:0,dsh:0,pend:0,ch:null,sc:0,linked:0,
-  invList:Array(UPS.length).fill(0),combos:[],supers:[],
+  invList:Array(UPS.length).fill(0),fusedLvl:Array(COMBOS.length).fill(0),combos:[],supers:[],
   st:{kills:0,dmg:0,taken:0,revives:0,gems:0},
   S:{dmg:1,rate:1,multi:1,pierce:0,speed:1,magnet:1,regen:0,orb:0,orbSpd:1,gemHeal:0}};
 };
@@ -67,6 +67,7 @@ function comboHint(p,uIdx){
  const nextInv=p.invList.slice();
  nextInv[uIdx]++;
 
+ // 1. Cumul d'un super-combo déjà actif
  for(const sup of p.supers){
   const sc=SUPER_COMBOS[sup.id];
   const c1=COMBOS[sc.req[0]],c2=COMBOS[sc.req[1]];
@@ -74,9 +75,10 @@ function comboHint(p,uIdx){
   if(minAll>sup.lvl)return {type:"sup",txt:"Cumul Fusion Niv."+(sup.lvl+1)+" : "+sc.name};
  }
 
+ // 2. Cumul d'un combo actif (avec fusion éventuelle)
  for(const act of p.combos){
   const c=COMBOS[act.id];
-  const newLvl=Math.min(nextInv[c.req[0]],nextInv[c.req[1]]);
+  const newLvl=Math.min(nextInv[c.req[0]],nextInv[c.req[1]])-p.fusedLvl[c.id];
   if(newLvl>act.lvl){
    if(p.combos.length>=2){
     const sc=findSuper(p.combos[0].id,p.combos[1].id);
@@ -86,10 +88,16 @@ function comboHint(p,uIdx){
   }
  }
 
+ // 3. Déblocage d'un nouveau combo
  for(const c of COMBOS){
   if(p.combos.some(x=>x.id===c.id))continue;
-  if(nextInv[c.req[0]]>0&&nextInv[c.req[1]]>0){
+  const targetLvl=Math.min(nextInv[c.req[0]],nextInv[c.req[1]])-p.fusedLvl[c.id];
+  if(targetLvl>0){
    if(p.combos.length>=MAX_COMBOS)return {type:"full",txt:"Slots combos pleins ("+MAX_COMBOS+"/"+MAX_COMBOS+")"};
+   if(p.combos.length===1&&(p.combos[0].lvl+targetLvl)>=3){
+    const sc=findSuper(p.combos[0].id,c.id);
+    if(sc)return {type:"fuse",txt:"FUSION : "+sc.name};
+   }
    return {type:"new",txt:"Nouveau combo : "+c.name};
   }
  }
@@ -100,26 +108,44 @@ function applyUpgrade(r,p,uIdx){
  UPS[uIdx][2](p);
  p.invList[uIdx]++;
 
- for(const c of COMBOS){
-  const targetLvl=Math.min(p.invList[c.req[0]],p.invList[c.req[1]]);
-  if(targetLvl<=0)continue;
-  const existing=p.combos.find(x=>x.id===c.id);
-  if(existing){
-   while(existing.lvl<targetLvl){
-    existing.lvl++;
-    c.apply(p);
-    r.ev.push([Math.round(p.x),Math.round(p.y),5,p.i,c.id,existing.lvl]);
-   }
-  }else if(p.combos.length<MAX_COMBOS){
-   p.combos.push({id:c.id,lvl:1});
-   c.apply(p);
-   r.ev.push([Math.round(p.x),Math.round(p.y),5,p.i,c.id,1]);
+ // 1. Montée de niveau des super-combos existants avant de recalculer les combos de base
+ for(const sup of p.supers){
+  const sc=SUPER_COMBOS[sup.id];
+  const c1=COMBOS[sc.req[0]],c2=COMBOS[sc.req[1]];
+  const minAll=Math.min(p.invList[c1.req[0]],p.invList[c1.req[1]],p.invList[c2.req[0]],p.invList[c2.req[1]]);
+  while(sup.lvl<minAll){
+   sup.lvl++;
+   if(p.fusedLvl[c1.id]<sup.lvl)p.fusedLvl[c1.id]=sup.lvl;
+   if(p.fusedLvl[c2.id]<sup.lvl)p.fusedLvl[c2.id]=sup.lvl;
+   sc.apply(p);
+   r.ev.push([Math.round(p.x),Math.round(p.y),6,p.i,sc.id,sup.lvl]);
   }
  }
 
+ // 2. Déblocage et montée de niveau des combos actifs (hors niveaux déjà fusionnés)
+ for(const c of COMBOS){
+  const targetLvl=Math.min(p.invList[c.req[0]],p.invList[c.req[1]])-p.fusedLvl[c.id];
+  if(targetLvl<=0)continue;
+  let existing=p.combos.find(x=>x.id===c.id);
+  if(!existing){
+   if(p.combos.length>=MAX_COMBOS)continue;
+   existing={id:c.id,lvl:0};
+   p.combos.push(existing);
+  }
+  while(existing.lvl<targetLvl){
+   existing.lvl++;
+   c.apply(p);
+   r.ev.push([Math.round(p.x),Math.round(p.y),5,p.i,c.id,existing.lvl]);
+  }
+ }
+
+ // 3. Fusion en super-combo si 2 combos actifs atteignent un total >= 3 niveaux
  if(p.combos.length===2&&(p.combos[0].lvl+p.combos[1].lvl)>=3){
-  const sc=findSuper(p.combos[0].id,p.combos[1].id);
+  const cA=p.combos[0],cB=p.combos[1];
+  const sc=findSuper(cA.id,cB.id);
   if(sc){
+   p.fusedLvl[cA.id]+=cA.lvl;
+   p.fusedLvl[cB.id]+=cB.lvl;
    p.combos=[];
    const exSup=p.supers.find(s=>s.id===sc.id);
    if(exSup){
@@ -131,17 +157,6 @@ function applyUpgrade(r,p,uIdx){
     sc.apply(p);
     r.ev.push([Math.round(p.x),Math.round(p.y),6,p.i,sc.id,1]);
    }
-  }
- }
-
- for(const sup of p.supers){
-  const sc=SUPER_COMBOS[sup.id];
-  const c1=COMBOS[sc.req[0]],c2=COMBOS[sc.req[1]];
-  const minAll=Math.min(p.invList[c1.req[0]],p.invList[c1.req[1]],p.invList[c2.req[0]],p.invList[c2.req[1]]);
-  while(sup.lvl<minAll){
-   sup.lvl++;
-   sc.apply(p);
-   r.ev.push([Math.round(p.x),Math.round(p.y),6,p.i,sc.id,sup.lvl]);
   }
  }
 }
@@ -563,4 +578,4 @@ wss.on("connection",ws=>{
   else if(r.paused)r.paused=false;
  });
 });
-srv.listen(PORT,"0.0.0.0",()=>console.log("Survivor Squad (Stats fin de partie) sur le port "+PORT));
+srv.listen(PORT,"0.0.0.0",()=>console.log("Survivor Squad sur le port "+PORT));
