@@ -47,13 +47,13 @@ const SPAWNS=[[-48,-32],[48,-32],[-48,32],[48,32]];
 
 const rnd=(a,b)=>a+Math.random()*(b-a),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const nextNeed=lvl=>8+lvl*5+Math.floor(lvl*lvl*.45);
-// Multiplicateur de PV tous les 5 rounds
 const hpScale=w=>Math.pow(1.45,Math.floor((Math.max(1,w)-1)/5));
 
 const mkP=(ws,i)=>{
  const sp=SPAWNS[i%4];
  return {ws,i,x:W/2+sp[0],y:H/2+sp[1],r:11,hp:100,max:100,down:0,rev:0,inv:0,dx:0,dy:0,cd:0,dc:0,dsh:0,pend:0,ch:null,sc:0,linked:0,
   invList:Array(UPS.length).fill(0),combos:[],supers:[],
+  st:{kills:0,dmg:0,taken:0,revives:0,gems:0},
   S:{dmg:1,rate:1,multi:1,pierce:0,speed:1,magnet:1,regen:0,orb:0,orbSpd:1,gemHeal:0}};
 };
 
@@ -170,19 +170,6 @@ function spawnBoss(r,forcedType){
  r.E.push(e);
 }
 
-/*
- Types d'ennemis :
- 0 : Marcheur (standard)
- 1 : Coureur (rapide)
- 2 : Colosse blindé (tank)
- 3 : Tireur (distance simple)
- 4 : Boss (5 variantes)
- 5 : Spectre (téléporteur vers la cible)
- 6 : Kamikaze (explose en 6 projectiles à la mort/impact)
- 7 : Bélier (chargeur en ligne droite après verrouillage)
- 8 : Artilleur (tir en éventail de 3 projectiles)
- 9 : Invocateur (génère des coureurs à distance)
-*/
 function spawnE(r){
  const w=r.wave,n=1+(r.pl.length-1)*0.32,sc=hpScale(w);
  const [x,y]=edgePos(28);
@@ -217,6 +204,19 @@ function explodeKamikaze(r,e){
  for(let i=0;i<6;i++){
   const a=i*1.0472;
   r.X.push({x:e.x,y:e.y,vx:Math.cos(a)*195,vy:Math.sin(a)*195,l:2.4});
+ }
+}
+
+function hitEnemy(r,e,dmg,ownerIdx){
+ const dealt=Math.min(Math.max(0,e.hp),dmg);
+ e.hp-=dmg;
+ const owner=r.pl[ownerIdx];
+ if(owner){
+  owner.st.dmg+=dealt;
+  if(e.hp<=0&&!e.dead){
+   e.dead=true;
+   owner.st.kills++;
+  }
  }
 }
 
@@ -264,7 +264,8 @@ function tick(r){
   for(const e of r.E){
    if(b.l<=0)break;
    if(b.h.includes(e)||Math.hypot(e.x-b.x,e.y-b.y)>=e.r+4)continue;
-   e.hp-=b.d;b.h.push(e);if(--b.p<0)b.l=0;
+   hitEnemy(r,e,b.d,b.o);
+   b.h.push(e);if(--b.p<0)b.l=0;
   }
  }
  r.B=r.B.filter(b=>b.l>0);
@@ -332,7 +333,6 @@ function tick(r){
     if(e.sh<=0){e.sh=3.6;for(let i=0;i<8;i++){const a=i*.785+r.t;r.X.push({x:e.x,y:e.y,vx:Math.cos(a)*140,vy:Math.sin(a)*140,l:4})}}
    }
   }else if(e.k===5){
-   // Spectre : avance puis se téléporte de 110 px vers le joueur
    e.x+=(t.x-e.x)/d*e.sp*DT;e.y+=(t.y-e.y)/d*e.sp*DT;
    e.tp-=DT;
    if(e.tp<=0){
@@ -343,7 +343,6 @@ function tick(r){
     r.ev.push([Math.round(e.x),Math.round(e.y),5]);
    }
   }else if(e.k===7){
-   // Bélier : prépare sa charge puis fonce en ligne droite
    if(e.dash>0){
     e.dash-=DT;
     e.x=Math.max(e.r,Math.min(W-e.r,e.x+e.vx*DT));
@@ -358,7 +357,6 @@ function tick(r){
     }
    }
   }else if(e.k===8){
-   // Artilleur : tir en éventail de 3 projectiles
    const v=td<250?0:e.sp;
    e.x+=(t.x-e.x)/d*v*DT;e.y+=(t.y-e.y)/d*v*DT;
    e.sh-=DT;
@@ -368,7 +366,6 @@ function tick(r){
     for(let i=-1;i<=1;i++){const a=ba+i*.22;r.X.push({x:e.x,y:e.y,vx:Math.cos(a)*180,vy:Math.sin(a)*180,l:3.2})}
    }
   }else if(e.k===9){
-   // Invocateur : reste loin et invoque des coureurs
    const v=td<260?0:e.sp;
    e.x+=(t.x-e.x)/d*v*DT;e.y+=(t.y-e.y)/d*v*DT;
    e.sum-=DT;
@@ -393,9 +390,9 @@ function tick(r){
   }
 
   if(td<e.r+t.r&&t.inv<=0){
-   t.hp-=e.d;t.inv=.75;
+   t.hp-=e.d;t.inv=.75;t.st.taken+=e.d;
    if(t.hp<=0){t.hp=0;t.down=1;t.rev=0}
-   if(e.k===6)e.hp=0; // Kamikaze explose au contact
+   if(e.k===6){e.hp=0;e.dead=true}
   }
  }
 
@@ -410,7 +407,10 @@ function tick(r){
  for(const d of pl)if(d.down){
   const a=al.find(p=>!p.down&&dist(p,d)<62);
   d.rev=a?d.rev+DT:Math.max(0,d.rev-DT*.5);
-  if(d.rev>=2.2){d.down=0;d.hp=d.max*.6;d.inv=2.5;d.rev=0}
+  if(d.rev>=2.2){
+   d.down=0;d.hp=d.max*.6;d.inv=2.5;d.rev=0;
+   if(a)a.st.revives++;
+  }
  }
  if(pl.every(p=>p.down)){r.st="over";return}
 
@@ -419,11 +419,9 @@ function tick(r){
   if(r.spawnCd<=0){
    spawnE(r);
    r.toSpawn--;
-   // Apparition beaucoup plus rapide dans un round
    r.spawnCd=Math.max(0.08,0.36-r.wave*0.007);
   }
  }else if(r.E.length===0){
-  // Fin de partie victorieuse après avoir nettoyé la vague 50
   if(r.wave>=MAX_WAVE){
    r.st="win";
    return;
@@ -435,7 +433,6 @@ function tick(r){
    const mult=1+(pl.length-1)*0.35;
 
    if(r.wave>=45&&r.wave<=50){
-    // Vagues 45 à 50 : plusieurs boss à chaque vague (2 -> 5 boss)
     const bossCount=r.wave===50?5:Math.min(4,2+Math.floor((r.wave-45)/2));
     const order=[0,1,2,3,4].sort(()=>Math.random()-.5);
     for(let bi=0;bi<bossCount;bi++)spawnBoss(r,order[bi%5]);
@@ -453,14 +450,21 @@ function tick(r){
  const live=pl.filter(p=>!p.down);
  for(const p of live)if(p.S.orb)for(let k=0;k<p.S.orb;k++){
   const a=r.t*3*p.S.orbSpd+k*6.283/p.S.orb,bx=p.x+Math.cos(a)*46,by=p.y+Math.sin(a)*46;
-  for(const e of r.E)if(!(e.bc>0)&&Math.hypot(e.x-bx,e.y-by)<e.r+7){e.hp-=1.3*p.S.dmg;e.bc=.28}
+  for(const e of r.E)if(!(e.bc>0)&&Math.hypot(e.x-bx,e.y-by)<e.r+7){
+   hitEnemy(r,e,1.3*p.S.dmg,p.i);
+   e.bc=.28;
+  }
  }
  for(const e of r.E)e.bc-=DT;
 
  r.X=r.X.filter(b=>{
   b.x+=b.vx*DT;b.y+=b.vy*DT;b.l-=DT;
   if(b.l<=0)return false;
-  for(const p of live)if(p.inv<=0&&Math.hypot(p.x-b.x,p.y-b.y)<p.r+5){p.hp-=10;p.inv=.75;if(p.hp<=0){p.hp=0;p.down=1;p.rev=0}return false}
+  for(const p of live)if(p.inv<=0&&Math.hypot(p.x-b.x,p.y-b.y)<p.r+5){
+   p.hp-=10;p.inv=.75;p.st.taken+=10;
+   if(p.hp<=0){p.hp=0;p.down=1;p.rev=0}
+   return false;
+  }
   return true;
  });
 
@@ -472,6 +476,7 @@ function tick(r){
   if(nd<pull){const d=nd||1;g.x+=(n.x-g.x)/d*340*DT;g.y+=(n.y-g.y)/d*340*DT}
   if(nd<n.r+6){
    r.xp+=g.v;
+   n.st.gems++;
    if(n.S.gemHeal)n.hp=Math.min(n.max,n.hp+n.S.gemHeal);
    while(r.xp>=r.need){
     r.xp-=r.need;r.lvl++;r.need=nextNeed(r.lvl);
@@ -498,7 +503,19 @@ function snap(r){
   bName=bosses.length+" BOSS ACTIFS ("+bosses.map(b=>BOSS_NAMES[b.bk]).join(" · ")+")";
   bHp=tot>0?R(cur/tot*100):0;
  }
- const b={t:"s",st:r.st,code:r.code,n:r.pl.length,tm:R(r.t*10)/10,k:r.kills,l:r.lvl,xp:r.xp,nd:r.need,lks:r.links,wv:r.wave,mw:MAX_WAVE,rem:r.E.length+r.toSpawn,pz:pz,mpz:r.paused?1:0,pby:r.pausedBy,bn:bName,bh:bHp,
+ const ended=(r.st==="over"||r.st==="win");
+ const endStats=ended?r.pl.map(p=>({
+  i:p.i,
+  kills:p.st.kills,
+  dmg:R(p.st.dmg),
+  taken:R(p.st.taken),
+  rev:p.st.revives,
+  gems:p.st.gems,
+  cmb:p.combos,
+  sup:p.supers
+ })):null;
+
+ const b={t:"s",st:r.st,code:r.code,n:r.pl.length,tm:R(r.t*10)/10,k:r.kills,l:r.lvl,xp:r.xp,nd:r.need,lks:r.links,wv:r.wave,mw:MAX_WAVE,rem:r.E.length+r.toSpawn,pz:pz,mpz:r.paused?1:0,pby:r.pausedBy,bn:bName,bh:bHp,stats:endStats,
   p:r.pl.map(p=>[R(p.x),R(p.y),R(p.hp),p.max,p.down,R(p.rev*100)/100,p.inv>0?1:0,p.pend,R(85*p.S.magnet),R(Math.max(0,p.dc)*10)/10,p.S.orb,p.ch!==null?1:0,p.dsh>0?1:0,p.sc,p.S.orbSpd,p.linked]),
   E:r.E.map(e=>[R(e.x),R(e.y),e.k,R(e.hp/e.mh*100),e.bk||0,e.dash>0?1:0]),
   B:r.B.map(x=>[R(x.x),R(x.y),x.vx,x.vy,x.o,x.hv||0]),
@@ -546,4 +563,4 @@ wss.on("connection",ws=>{
   else if(r.paused)r.paused=false;
  });
 });
-srv.listen(PORT,"0.0.0.0",()=>console.log("Survivor Squad (Vague 50) sur le port "+PORT));
+srv.listen(PORT,"0.0.0.0",()=>console.log("Survivor Squad (Stats fin de partie) sur le port "+PORT));
