@@ -22,14 +22,14 @@ const rnd=(a,b)=>a+Math.random()*(b-a),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const mkP=(ws,i)=>({ws,i,x:W/2+(i?50:-50),y:H/2,r:11,hp:100,max:100,down:0,rev:0,inv:0,dx:0,dy:0,cd:0,dc:0,dsh:0,pend:0,ch:null,S:{dmg:1,rate:1,multi:1,pierce:0,speed:1,magnet:1,regen:0,orb:0}});
 
 function reset(r){
- Object.assign(r,{E:[],B:[],G:[],X:[],ev:[],t:0,kills:0,xp:0,lvl:1,need:4,link:0,wave:0,toSpawn:0,spawnCd:0,waveDelay:0.5});
+ Object.assign(r,{E:[],B:[],G:[],X:[],ev:[],t:0,kills:0,xp:0,lvl:1,need:4,link:0,wave:0,toSpawn:0,spawnCd:0,waveDelay:0.5,paused:false,pausedBy:-1});
  r.pl.forEach((p,i)=>Object.assign(p,mkP(p.ws,i)));
 }
 const offer=p=>{p.ch=UPS.map((u,i)=>i).sort(()=>Math.random()-.5).slice(0,3)};
 
 function spawnBoss(r){
  const w=r.wave,n=r.pl.length>1?1.45:1;
- const bType=Math.floor((w/5-1)%5); // 0:Colosse, 1:Traqueur, 2:Arpenteur, 3:Matriarche, 4:Seigneur
+ const bType=Math.floor((w/5-1)%5);
  const tier=w>25?1.65:1;
  const a=Math.random()*4,m=32;
  let x,y;
@@ -58,8 +58,8 @@ function spawnE(r){
 
 function tick(r){
  if(r.st!=="play")return;
- // Pause globale tant qu'au moins un joueur a un choix de niveau actif
- if(r.pl.some(p=>p.ch!==null))return;
+ // Pause manuelle ou pause de choix de niveau
+ if(r.paused||r.pl.some(p=>p.ch!==null))return;
 
  r.t+=DT;
  const pl=r.pl,al=pl.filter(p=>!p.down);
@@ -96,8 +96,7 @@ function tick(r){
   const d=td||1;
 
   if(e.k===4){
-   // IA spécifique aux 5 types de boss
-   if(e.bk===1){ // Traqueur : dash rapide
+   if(e.bk===1){
     if(e.dash>0){
      e.dash-=DT;
      e.x=Math.max(e.r,Math.min(W-e.r,e.x+e.vx*DT));
@@ -107,7 +106,7 @@ function tick(r){
      e.sp2-=DT;
      if(e.sp2<=0){e.sp2=3.2;e.dash=.38;e.vx=(t.x-e.x)/d*340;e.vy=(t.y-e.y)/d*340}
     }
-   }else if(e.bk===2){ // Arpenteur : reste à distance & téléportation
+   }else if(e.bk===2){
     const v=td<230?0:e.sp;
     e.x+=(t.x-e.x)/d*v*DT;e.y+=(t.y-e.y)/d*v*DT;
     e.sp2-=DT;
@@ -122,7 +121,7 @@ function tick(r){
      const ba=Math.atan2(t.y-e.y,t.x-e.x);
      for(let i=-1;i<=1;i++){const a=ba+i*.25;r.X.push({x:e.x,y:e.y,vx:Math.cos(a)*195,vy:Math.sin(a)*195,l:3.2})}
     }
-   }else if(e.bk===3){ // Matriarche : invoque des sbires
+   }else if(e.bk===3){
     e.x+=(t.x-e.x)/d*e.sp*DT;e.y+=(t.y-e.y)/d*e.sp*DT;
     e.sp2-=DT;
     if(e.sp2<=0&&r.E.length<28){
@@ -133,7 +132,7 @@ function tick(r){
       const m={k:1,r:8,hp:1.5+r.wave*.15,sp:95,xp:1,d:7,x:sx,y:sy,bc:0};m.mh=m.hp;r.E.push(m);
      }
     }
-   }else if(e.bk===4){ // Seigneur d'Encre : spirale + invocation
+   }else if(e.bk===4){
     e.x+=(t.x-e.x)/d*e.sp*DT;e.y+=(t.y-e.y)/d*e.sp*DT;
     e.sh-=DT;
     if(e.sh<=0){
@@ -145,7 +144,7 @@ function tick(r){
      e.sp2=5.5;
      const m={k:0,r:11,hp:2+r.wave*.25,sp:65,xp:1,d:8,x:e.x,y:e.y,bc:0};m.mh=m.hp;r.E.push(m);
     }
-   }else{ // Colosse (bk===0) : salve circulaire
+   }else{
     e.x+=(t.x-e.x)/d*e.sp*DT;e.y+=(t.y-e.y)/d*e.sp*DT;
     e.sh-=DT;
     if(e.sh<=0){e.sh=4.0;for(let i=0;i<8;i++){const a=i*.785+r.t;r.X.push({x:e.x,y:e.y,vx:Math.cos(a)*135,vy:Math.sin(a)*135,l:4})}}
@@ -176,7 +175,6 @@ function tick(r){
  }
  if(pl.every(p=>p.down)){r.st="over";return}
 
- // Vagues séquentielles
  if(r.toSpawn>0){
   r.spawnCd-=DT;
   if(r.spawnCd<=0){
@@ -233,11 +231,13 @@ function tick(r){
 }
 
 function snap(r){
- const R=Math.round,pz=r.pl.some(p=>p.ch!==null)?1:0;
+ const R=Math.round;
+ const lvlPz=r.pl.some(p=>p.ch!==null)?1:0;
+ const pz=(lvlPz||r.paused)?1:0;
  const boss=r.E.find(e=>e.k===4);
  const bName=boss?BOSS_NAMES[boss.bk]:"";
  const bHp=boss?R(boss.hp/boss.mh*100):0;
- const b={t:"s",st:r.st,code:r.code,n:r.pl.length,tm:R(r.t*10)/10,k:r.kills,l:r.lvl,xp:r.xp,nd:r.need,lk:r.link,wv:r.wave,rem:r.E.length+r.toSpawn,pz:pz,bn:bName,bh:bHp,
+ const b={t:"s",st:r.st,code:r.code,n:r.pl.length,tm:R(r.t*10)/10,k:r.kills,l:r.lvl,xp:r.xp,nd:r.need,lk:r.link,wv:r.wave,rem:r.E.length+r.toSpawn,pz:pz,mpz:r.paused?1:0,pby:r.pausedBy,bn:bName,bh:bHp,
   p:r.pl.map(p=>[R(p.x),R(p.y),R(p.hp),p.max,p.down,R(p.rev*100)/100,p.inv>0?1:0,p.pend,R(85*p.S.magnet),R(Math.max(0,p.dc)*10)/10,p.S.orb,p.ch!==null?1:0]),
   E:r.E.map(e=>[R(e.x),R(e.y),e.k,R(e.hp/e.mh*100),e.bk||0]),
   B:r.B.map(x=>[R(x.x),R(x.y),x.vx,x.vy,x.o]),
@@ -268,6 +268,10 @@ wss.on("connection",ws=>{
    p.inv=Math.max(p.inv,.6);
    if(p.pend>0)offer(p);
   }
+  else if(d.t==="pause"&&r.st==="play"){
+   r.paused=!r.paused;
+   r.pausedBy=r.paused?p.i:-1;
+  }
   else if(d.t==="dash"&&!p.down&&p.dc<=0&&(p.dx||p.dy)){p.dsh=.18;p.dc=2.0;p.inv=Math.max(p.inv,.4)}
   else if(d.t==="start"&&r.st==="wait")r.st="play";
   else if(d.t==="restart"&&r.st==="over"){reset(r);r.st="play"}
@@ -276,6 +280,7 @@ wss.on("connection",ws=>{
   const r=ws.r;if(!r)return;
   r.pl=r.pl.filter(p=>p!==ws.p);r.pl.forEach((p,i)=>p.i=i);
   if(!r.pl.length)rooms.delete(r.code);
+  else if(r.paused)r.paused=false;
  });
 });
 srv.listen(PORT,"0.0.0.0",()=>console.log("Survivor Duo sur le port "+PORT));
