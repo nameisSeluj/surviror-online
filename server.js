@@ -4,6 +4,8 @@ const page=fs.readFileSync(path.join(__dirname,"public","index.html"));
 const srv=http.createServer((q,r)=>{r.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});r.end(page)});
 const wss=new WebSocketServer({server:srv,maxPayload:1024}),rooms=new Map();
 
+const MAX_COMBOS=2;
+
 const UPS=[
  ["Dégâts +30 %","Tes tirs frappent plus fort",p=>p.S.dmg*=1.3],
  ["Cadence +25 %","Tu tires plus vite",p=>p.S.rate*=1.25],
@@ -17,12 +19,28 @@ const UPS=[
 ];
 
 const COMBOS=[
- {id:0,req:[0,1],name:"Mitrailleuse lourde",apply:p=>{p.S.dmg*=1.35;p.S.rate*=1.35}},
+ {id:0,req:[0,1],name:"Mitrailleuse lourde",apply:p=>{p.S.dmg*=1.3;p.S.rate*=1.3}},
  {id:1,req:[2,3],name:"Pluie d'acier",apply:p=>{p.S.multi+=2}},
- {id:2,req:[7,4],name:"Tempête de lames",apply:p=>{p.S.orb+=2;p.S.orbSpd=2}},
- {id:3,req:[6,8],name:"Forteresse vivante",apply:p=>{p.max+=30;p.hp=p.max;p.S.regen*=2}},
- {id:4,req:[5,7],name:"Vortex magnétique",apply:p=>{p.S.magnet*=2;p.S.gemHeal=1}}
+ {id:2,req:[7,4],name:"Tempête de lames",apply:p=>{p.S.orb+=2;p.S.orbSpd*=1.45}},
+ {id:3,req:[6,8],name:"Forteresse vivante",apply:p=>{p.max+=30;p.hp=p.max;p.S.regen+=1.4}},
+ {id:4,req:[5,7],name:"Vortex magnétique",apply:p=>{p.S.magnet*=1.7;p.S.gemHeal+=1}}
 ];
+
+// Les 10 fusions possibles (Combo de Combo)
+const SUPER_COMBOS=[
+ {id:0,req:[0,1],name:"Apocalypse Balistique",apply:p=>{p.S.dmg*=1.45;p.S.multi+=2;p.S.pierce+=2}},
+ {id:1,req:[0,2],name:"Canon à Lames",apply:p=>{p.S.dmg*=1.35;p.S.rate*=1.35;p.S.orb+=2;p.S.orbSpd*=1.4}},
+ {id:2,req:[0,3],name:"Juggernaut d'Encre",apply:p=>{p.max+=50;p.hp=p.max;p.S.dmg*=1.4;p.S.regen+=1.5}},
+ {id:3,req:[0,4],name:"Surcharge Magnétique",apply:p=>{p.S.rate*=1.45;p.S.magnet*=1.8;p.S.gemHeal+=2}},
+ {id:4,req:[1,2],name:"Déluge Rasoir",apply:p=>{p.S.multi+=2;p.S.orb+=3;p.S.speed*=1.2}},
+ {id:5,req:[1,3],name:"Rempart d'Acier",apply:p=>{p.max+=45;p.hp=p.max;p.S.pierce+=2;p.S.regen+=1.5}},
+ {id:6,req:[1,4],name:"Orage Magnétique",apply:p=>{p.S.multi+=2;p.S.magnet*=1.8;p.S.gemHeal+=2}},
+ {id:7,req:[2,3],name:"Citadelle Tournoyante",apply:p=>{p.max+=45;p.hp=p.max;p.S.orb+=3;p.S.orbSpd*=1.5}},
+ {id:8,req:[2,4],name:"Singularité Tranchante",apply:p=>{p.S.orb+=3;p.S.orbSpd*=1.6;p.S.magnet*=2;p.S.gemHeal+=2}},
+ {id:9,req:[3,4],name:"Bastion Astral",apply:p=>{p.max+=50;p.hp=p.max;p.S.regen+=2.2;p.S.gemHeal+=2}}
+];
+
+const findSuper=(idA,idB)=>SUPER_COMBOS.find(s=>(s.req[0]===idA&&s.req[1]===idB)||(s.req[0]===idB&&s.req[1]===idA));
 
 const BOSS_NAMES=["Colosse","Traqueur","Arpenteur","Matriarche","Seigneur d'Encre"];
 const SPAWNS=[[-48,-32],[48,-32],[-48,32],[48,32]];
@@ -31,7 +49,7 @@ const rnd=(a,b)=>a+Math.random()*(b-a),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const mkP=(ws,i)=>{
  const sp=SPAWNS[i%4];
  return {ws,i,x:W/2+sp[0],y:H/2+sp[1],r:11,hp:100,max:100,down:0,rev:0,inv:0,dx:0,dy:0,cd:0,dc:0,dsh:0,pend:0,ch:null,sc:0,linked:0,
-  invList:Array(UPS.length).fill(0),combos:[],
+  invList:Array(UPS.length).fill(0),combos:[],supers:[],
   S:{dmg:1,rate:1,multi:1,pierce:0,speed:1,magnet:1,regen:0,orb:0,orbSpd:1,gemHeal:0}};
 };
 
@@ -41,13 +59,94 @@ function reset(r){
 }
 const offer=p=>{p.ch=UPS.map((u,i)=>i).sort(()=>Math.random()-.5).slice(0,3)};
 
+// Prévisualise l'effet d'une carte sur les combos / cumuls / fusions
 function comboHint(p,uIdx){
- for(const c of COMBOS){
-  if(p.combos.includes(c.id))continue;
-  if(c.req[0]===uIdx&&p.invList[c.req[1]]>0)return c.name;
-  if(c.req[1]===uIdx&&p.invList[c.req[0]]>0)return c.name;
+ const nextInv=p.invList.slice();
+ nextInv[uIdx]++;
+
+ // 1. Vérifier si cela améliore un Super-Combo existant
+ for(const sup of p.supers){
+  const sc=SUPER_COMBOS[sup.id];
+  const c1=COMBOS[sc.req[0]],c2=COMBOS[sc.req[1]];
+  const minAll=Math.min(nextInv[c1.req[0]],nextInv[c1.req[1]],nextInv[c2.req[0]],nextInv[c2.req[1]]);
+  if(minAll>sup.lvl)return {type:"sup",txt:"Cumul Fusion Niv."+(sup.lvl+1)+" : "+sc.name};
  }
- return "";
+
+ // 2. Vérifier si cela fait monter de niveau un combo actif (et déclenche une fusion !)
+ for(const act of p.combos){
+  const c=COMBOS[act.id];
+  const newLvl=Math.min(nextInv[c.req[0]],nextInv[c.req[1]]);
+  if(newLvl>act.lvl){
+   if(p.combos.length>=2){
+    const sc=findSuper(p.combos[0].id,p.combos[1].id);
+    if(sc)return {type:"fuse",txt:"FUSION : "+sc.name};
+   }
+   return {type:"lvl",txt:"Cumul Niv."+newLvl+" : "+c.name};
+  }
+ }
+
+ // 3. Vérifier si cela débloque un nouveau combo
+ for(const c of COMBOS){
+  if(p.combos.some(x=>x.id===c.id))continue;
+  if(nextInv[c.req[0]]>0&&nextInv[c.req[1]]>0){
+   if(p.combos.length>=MAX_COMBOS)return {type:"full",txt:"Slots combos pleins ("+MAX_COMBOS+"/"+MAX_COMBOS+")"};
+   return {type:"new",txt:"Nouveau combo : "+c.name};
+  }
+ }
+ return null;
+}
+
+function applyUpgrade(r,p,uIdx){
+ UPS[uIdx][2](p);
+ p.invList[uIdx]++;
+
+ // 1. Déblocage ou cumul des combos de base
+ for(const c of COMBOS){
+  const targetLvl=Math.min(p.invList[c.req[0]],p.invList[c.req[1]]);
+  if(targetLvl<=0)continue;
+  const existing=p.combos.find(x=>x.id===c.id);
+  if(existing){
+   while(existing.lvl<targetLvl){
+    existing.lvl++;
+    c.apply(p);
+    r.ev.push([Math.round(p.x),Math.round(p.y),5,p.i,c.id,existing.lvl]);
+   }
+  }else if(p.combos.length<MAX_COMBOS){
+   p.combos.push({id:c.id,lvl:1});
+   c.apply(p);
+   r.ev.push([Math.round(p.x),Math.round(p.y),5,p.i,c.id,1]);
+  }
+ }
+
+ // 2. Vérifier la fusion en Combo de Combo (2 combos actifs dont un cumulé >= Niv.2)
+ if(p.combos.length===2&&(p.combos[0].lvl+p.combos[1].lvl)>=3){
+  const sc=findSuper(p.combos[0].id,p.combos[1].id);
+  if(sc){
+   p.combos=[]; // Libère les 2 emplacements de base
+   const exSup=p.supers.find(s=>s.id===sc.id);
+   if(exSup){
+    exSup.lvl++;
+    sc.apply(p);
+    r.ev.push([Math.round(p.x),Math.round(p.y),6,p.i,sc.id,exSup.lvl]);
+   }else{
+    p.supers.push({id:sc.id,lvl:1});
+    sc.apply(p);
+    r.ev.push([Math.round(p.x),Math.round(p.y),6,p.i,sc.id,1]);
+   }
+  }
+ }
+
+ // 3. Cumul direct d'un Super-Combo déjà formé
+ for(const sup of p.supers){
+  const sc=SUPER_COMBOS[sup.id];
+  const c1=COMBOS[sc.req[0]],c2=COMBOS[sc.req[1]];
+  const minAll=Math.min(p.invList[c1.req[0]],p.invList[c1.req[1]],p.invList[c2.req[0]],p.invList[c2.req[1]]);
+  while(sup.lvl<minAll){
+   sup.lvl++;
+   sc.apply(p);
+   r.ev.push([Math.round(p.x),Math.round(p.y),6,p.i,sc.id,sup.lvl]);
+  }
+ }
 }
 
 function spawnBoss(r){
@@ -86,7 +185,6 @@ function tick(r){
  r.t+=DT;
  const pl=r.pl,al=pl.filter(p=>!p.down);
 
- // Calcul des liens de garde entre joueurs proches (jusqu'à 4 joueurs)
  r.links=[];
  for(const p of pl)p.linked=0;
  for(let i=0;i<al.length;i++){
@@ -109,7 +207,7 @@ function tick(r){
    let n=null,nd=1e9;
    for(const e of r.E){const d=(e.x-p.x)**2+(e.y-p.y)**2;if(d<nd){nd=d;n=e}}
    const an=Math.atan2(n.y-p.y,n.x-p.x),dm=p.S.dmg*(p.linked?1.25:1);
-   const hasHeavy=p.combos.includes(0);
+   const hasHeavy=p.combos.some(c=>c.id===0)||p.supers.length>0;
    for(let i=0;i<p.S.multi;i++){
     const a=an+(i-(p.S.multi-1)/2)*.18;
     r.B.push({x:p.x,y:p.y,vx:Math.cos(a)*460,vy:Math.sin(a)*460,l:1.1,p:p.S.pierce,h:[],o:p.i,d:dm,hv:hasHeavy?1:0});
@@ -285,7 +383,7 @@ function snap(r){
   G:r.G.map(g=>[R(g.x),R(g.y)]),X:r.X.map(x=>[R(x.x),R(x.y)]),oa:R(r.t*300)/100,ev:r.ev};
  r.ev=[];
  for(const p of r.pl)if(p.ws.readyState===1)p.ws.send(JSON.stringify({
-  ...b,me:p.i,inv:p.invList,cmb:p.combos,
+  ...b,me:p.i,inv:p.invList,cmb:p.combos,sup:p.supers,
   ch:p.ch?p.ch.map(i=>[UPS[i][0],UPS[i][1],comboHint(p,i)]):null
  }));
 }
@@ -305,16 +403,7 @@ wss.on("connection",ws=>{
   const r=ws.r,p=ws.p;if(!r)return;
   if(d.t==="in"){p.dx=Math.max(-1,Math.min(1,+d.dx||0));p.dy=Math.max(-1,Math.min(1,+d.dy||0))}
   else if(d.t==="pick"&&p.ch&&p.ch[d.i]!=null){
-   const uIdx=p.ch[d.i];
-   UPS[uIdx][2](p);
-   p.invList[uIdx]++;
-   for(const c of COMBOS){
-    if(!p.combos.includes(c.id)&&p.invList[c.req[0]]>0&&p.invList[c.req[1]]>0){
-     p.combos.push(c.id);
-     c.apply(p);
-     r.ev.push([Math.round(p.x),Math.round(p.y),5,p.i,c.id]);
-    }
-   }
+   applyUpgrade(r,p,p.ch[d.i]);
    p.pend=Math.max(0,p.pend-1);
    p.ch=null;
    p.inv=Math.max(p.inv,.6);

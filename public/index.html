@@ -14,6 +14,7 @@
   --text:#f0e6d6;
   --muted:#9c8e7c;
   --gold:#e5a93c;
+  --crimson:#e05656;
   --p1:#59b878;
   --p2:#5b8fd9;
   --p3:#e09a3e;
@@ -175,31 +176,34 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   left:10px;
   right:96px;
   bottom:10px;
-  background:rgba(22,19,16,.88);
+  background:rgba(22,19,16,.9);
   border:1.5px solid var(--border);
   border-radius:6px;
   padding:5px 8px;
   align-items:center;
-  gap:6px;
+  gap:5px;
   flex-wrap:wrap;
   pointer-events:none;
   z-index:5;
   box-shadow:0 3px 10px rgba(0,0,0,.5);
 }
 .inv-lbl{
-  font-size:.65rem;
+  font-size:.64rem;
   font-weight:900;
-  letter-spacing:.08em;
+  letter-spacing:.06em;
   text-transform:uppercase;
   color:var(--muted);
-  margin-right:2px;
+  background:#14110e;
+  border:1px solid #362d24;
+  padding:2px 6px;
+  border-radius:4px;
 }
 .inv-item{
   background:#28221c;
   border:1px solid #4a3f34;
   border-radius:4px;
   padding:2px 6px;
-  font-size:.68rem;
+  font-size:.67rem;
   font-weight:700;
   color:var(--text);
   display:inline-flex;
@@ -213,11 +217,23 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   border:1.5px solid var(--gold);
   border-radius:4px;
   padding:2px 7px;
-  font-size:.68rem;
+  font-size:.67rem;
   font-weight:900;
   color:var(--gold);
   text-transform:uppercase;
   letter-spacing:.03em;
+}
+.inv-sup{
+  background:rgba(224,86,86,.22);
+  border:1.5px solid var(--crimson);
+  border-radius:4px;
+  padding:2px 7px;
+  font-size:.68rem;
+  font-weight:900;
+  color:#ff9e9e;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  box-shadow:0 0 8px rgba(224,86,86,.25);
 }
 @media (pointer:coarse){
   #invBar{right:165px}
@@ -254,7 +270,7 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
 }
 #pk button{
   pointer-events:auto;
-  flex:1;max-width:235px;
+  flex:1;max-width:238px;
   text-align:left;
   display:flex;flex-direction:column;gap:5px;
   background:var(--panel);
@@ -277,6 +293,16 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   padding:2px 6px;
   border-radius:4px;
   text-transform:uppercase;
+}
+#pk .cmbTag.fuse{
+  background:rgba(224,86,86,.25);
+  border-color:var(--crimson);
+  color:#ff9e9e;
+}
+#pk .cmbTag.full{
+  background:rgba(156,142,124,.12);
+  border-color:#5c5246;
+  color:var(--muted);
 }
 #pk i{
   position:absolute;top:-11px;right:8px;
@@ -341,6 +367,18 @@ var COMBO_DEFS=[
  {id:3,req:[6,8],name:"Forteresse vivante"},
  {id:4,req:[5,7],name:"Vortex magnétique"}
 ];
+var SUPER_DEFS=[
+ {id:0,name:"Apocalypse Balistique"},
+ {id:1,name:"Canon à Lames"},
+ {id:2,name:"Juggernaut d'Encre"},
+ {id:3,name:"Surcharge Magnétique"},
+ {id:4,name:"Déluge Rasoir"},
+ {id:5,name:"Rempart d'Acier"},
+ {id:6,name:"Orage Magnétique"},
+ {id:7,name:"Citadelle Tournoyante"},
+ {id:8,name:"Singularité Tranchante"},
+ {id:9,name:"Bastion Astral"}
+];
 var room=(new URLSearchParams(location.search).get("room")||"").toUpperCase();
 var tq=document.getElementById("tt");
 
@@ -355,10 +393,10 @@ function toast(m,c){
 function fmt(s){s=Math.floor(s);return Math.floor(s/60)+":"+("0"+s%60).slice(-2)}
 
 function addRing(x,y,rMax,c,lw){
-  RINGS.push({x:x,y:y,r:6,rm:rMax,c:c,lw:lw||3,l:.35,ml:.35});
+  RINGS.push({x:x,y:y,r:6,rm:rMax,c:c,lw:lw||3,l:.38,ml:.38});
 }
 function addFloat(x,y,txt,c){
-  FLOATS.push({x:x,y:y,txt:txt,c:c,l:1.1,ml:1.1});
+  FLOATS.push({x:x,y:y,txt:txt,c:c,l:1.25,ml:1.25});
 }
 
 function burst(x,y,c,n,leaveStain){
@@ -427,8 +465,8 @@ function how(){
   return '<div class="how">'+
     '<div><b>Déplacement</b><br>Flèches / ZQSD ou glisser</div>'+
     '<div><b>Esquive</b><br>Espace ou double-tap</div>'+
-    '<div><b>Escouade (1 à 4J)</b><br>Proches : +dégâts & +cadence</div>'+
-    '<div><b>Combos</b><br>Associe 2 améliorations compatibles</div>'+
+    '<div><b>Combos (max 2)</b><br>Cumule leurs niveaux pour les renforcer</div>'+
+    '<div><b>Combo de Combo</b><br>Cumule 2 combos actifs pour les fusionner</div>'+
   '</div>';
 }
 function lobby(msg){
@@ -461,15 +499,17 @@ function connect(){
 }
 
 function renderInventory(d){
-  var key=JSON.stringify(d.inv)+"|"+JSON.stringify(d.cmb);
+  var key=JSON.stringify(d.inv)+"|"+JSON.stringify(d.cmb)+"|"+JSON.stringify(d.sup);
   if(key===invKey)return;
   invKey=key;
+  var cmbs=d.cmb||[];
+  var sups=d.sup||[];
   var synUsed={};
-  (d.cmb||[]).forEach(function(cid){
-    var c=COMBO_DEFS[cid];
+  cmbs.forEach(function(item){
+    var c=COMBO_DEFS[item.id];
     if(c){synUsed[c.req[0]]=1;synUsed[c.req[1]]=1}
   });
-  var html='<span class="inv-lbl">Inventaire</span>';
+  var html='<span class="inv-lbl">Combos '+cmbs.length+'/2</span>';
   var hasAny=false;
   (d.inv||[]).forEach(function(cnt,idx){
     if(cnt>0){
@@ -477,23 +517,40 @@ function renderInventory(d){
       html+='<span class="inv-item'+(synUsed[idx]?' syn':'')+'">'+UP_SHORT[idx]+' <em>×'+cnt+'</em></span>';
     }
   });
-  (d.cmb||[]).forEach(function(cid){
-    var c=COMBO_DEFS[cid];
-    if(c)html+='<span class="inv-cmb">★ '+c.name+'</span>';
+  cmbs.forEach(function(item){
+    var c=COMBO_DEFS[item.id];
+    if(c)html+='<span class="inv-cmb">★ '+c.name+' Niv.'+item.lvl+'</span>';
   });
-  if(!hasAny)html+='<span style="color:var(--muted);font-size:.68rem">Aucune amélioration</span>';
+  sups.forEach(function(item){
+    var s=SUPER_DEFS[item.id];
+    if(s)html+='<span class="inv-sup">✦ '+s.name+(item.lvl>1?' Niv.'+item.lvl:'')+'</span>';
+  });
+  if(!hasAny)html+='<span style="color:var(--muted);font-size:.67rem">Aucune amélioration</span>';
   invBar.innerHTML=html;
 }
 
 function onState(d){
   d.ev.forEach(function(v){
     if(v[2]===5){
-      // Événement Combo débloqué
       var cname=COMBO_DEFS[v[4]]?COMBO_DEFS[v[4]].name:"Combo";
-      burst(v[0],v[1],"#e5a93c",28,false);
-      addRing(v[0],v[1],75,"#e5a93c",4);
-      addFloat(v[0],v[1]-24,"COMBO : "+cname,"#e5a93c");
-      if(v[3]===d.me)toast("Combo débloqué : "+cname,"#e5a93c");
+      var clvl=v[5]||1;
+      burst(v[0],v[1],"#e5a93c",26,false);
+      addRing(v[0],v[1],70,"#e5a93c",3.5);
+      addFloat(v[0],v[1]-24,(clvl>1?"CUMUL NIV."+clvl+" : ":"COMBO : ")+cname,"#e5a93c");
+      if(v[3]===d.me)toast((clvl>1?"Combo cumulé Niv."+clvl+" : ":"Combo : ")+cname,"#e5a93c");
+      return;
+    }
+    if(v[2]===6){
+      var sname=SUPER_DEFS[v[4]]?SUPER_DEFS[v[4]].name:"Fusion";
+      var slvl=v[5]||1;
+      burst(v[0],v[1],"#e05656",42,false);
+      addRing(v[0],v[1],105,"#e05656",5);
+      addRing(v[0],v[1],65,"#ffd166",3);
+      addFloat(v[0],v[1]-28,(slvl>1?"FUSION NIV."+slvl+" : ":"COMBO DE COMBO : ")+sname,"#ff9e9e");
+      if(v[3]===d.me){
+        shake=8;
+        toast("COMBO DE COMBO : "+sname+(slvl>1?" (Niv."+slvl+")":""),"#ff9e9e");
+      }
       return;
     }
     burst(v[0],v[1],EC[v[2]],v[2]===4?45:9,true);
@@ -590,7 +647,13 @@ function onState(d){
     if(d.ch&&d.ch.length){
       pk.style.display="flex";
       pk.innerHTML=d.ch.map(function(u,i){
-        var cTag=u[2]?'<div class="cmbTag">★ Combo : '+u[2]+'</div>':'';
+        var hint=u[2];
+        var cTag="";
+        if(hint){
+          var cls=hint.type==="fuse"||hint.type==="sup"?"fuse":(hint.type==="full"?"full":"");
+          var prefix=hint.type==="fuse"||hint.type==="sup"?"✦ ":(hint.type==="full"?"":"★ ");
+          cTag='<div class="cmbTag '+cls+'">'+prefix+hint.txt+'</div>';
+        }
         return '<button data-i="'+i+'"><i>'+keyBadges[i]+'</i><b>'+u[0]+'</b><small>'+u[1]+'</small>'+cTag+'</button>';
       }).join("")+(me&&me[7]>1?'<span>+'+(me[7]-1)+'</span>':'');
     }else{
@@ -740,7 +803,6 @@ function drawPlayer(p,i,v,aimAngle){
 
   ctx.globalAlpha=p[6]&&Math.floor(tt*20)%2?.35:1;
 
-  // Arme avec recul et flash de tir
   var kick=(v.recoil||0)*4.5;
   ctx.save();
   ctx.translate(v.x,v.y-Math.abs(bob));
@@ -753,7 +815,6 @@ function drawPlayer(p,i,v,aimAngle){
   }
   ctx.restore();
 
-  // Corps animé (squash & stretch + inclinaison)
   ctx.save();
   ctx.translate(v.x,v.y-Math.abs(bob));
   ctx.rotate(lean);
@@ -774,7 +835,6 @@ function drawPlayer(p,i,v,aimAngle){
 
   ctx.globalAlpha=1;
 
-  // Lames orbitales avec traînée
   if(p[10]){
     var ospd=p[14]||1;
     for(var q=0;q<p[10];q++){
@@ -807,7 +867,6 @@ function draw(){
   });
   ctx.globalAlpha=1;
 
-  // Ondes de choc au sol
   RINGS.forEach(function(rg){
     var a=Math.max(0,rg.l/rg.ml);
     ctx.globalAlpha=a*.85;ctx.strokeStyle=rg.c;ctx.lineWidth=rg.lw*a;
@@ -815,7 +874,6 @@ function draw(){
   });
   ctx.globalAlpha=1;
 
-  // Silhouettes fantômes de dash
   GHOSTS.forEach(function(gh){
     ctx.globalAlpha=Math.max(0,gh.l/.22)*.42;
     ctx.fillStyle=gh.c;
@@ -859,7 +917,6 @@ function draw(){
       ctx.beginPath();ctx.arc(b[0],b[1],4.5,0,6.283);ctx.fill();ctx.stroke();
     });
 
-    // Liens de garde entre paires de joueurs proches
     (S.lks||[]).forEach(function(pair){
       var v0=vis[pair[0]],v1=vis[pair[1]];
       if(!v0||!v1)return;
@@ -887,7 +944,6 @@ function draw(){
     });
     ctx.globalAlpha=1;
 
-    // Textes flottants en arène
     FLOATS.forEach(function(fl){
       var a=Math.min(1,fl.l/fl.ml*1.5);
       ctx.globalAlpha=a;
@@ -910,7 +966,6 @@ function draw(){
     ctx.fillStyle="#3fa796";ctx.fillRect(0,0,W*Math.min(1,S.xp/S.nd),7);
     ctx.fillStyle="#120d0a";ctx.fillRect(0,7,W,1);
 
-    // Barres de vie jusqu'à 4 joueurs (J1/J3 à gauche, J2/J4 à droite)
     S.p.forEach(function(p,i){
       var col=i%2,row=Math.floor(i/2);
       var x=col?W-162:14,y=15+row*25;
@@ -920,7 +975,6 @@ function draw(){
         rr(x+2,y+2,Math.max(4,144*hp),16,2);
         ctx.fillStyle=p[4]?"#5c5349":CO[i%4];ctx.fill();
       }
-      // Jauge d'esquive intégrée en bas de la barre de "TOI"
       if(i===S.me){
         var rd=Math.max(0,1-p[9]/2.0);
         ctx.fillStyle="#120d0a";ctx.fillRect(x+2,y+15,144,3);
@@ -994,13 +1048,11 @@ function frame(now){
     v.recoil=Math.max(0,(v.recoil||0)-dt*8);
     v.flash=Math.max(0,(v.flash||0)-dt*14);
 
-    // Déclenchement animation de tir
     if(p[13]!==v.sc){
       v.sc=p[13];
       v.recoil=1;
       v.flash=1;
     }
-    // Déclenchement animation de dash
     if(p[12]&&!v.dsh){
       addRing(v.x,v.y,34,CO[i%4],2.5);
       burst(v.x,v.y,"#cbbba6",6,false);
