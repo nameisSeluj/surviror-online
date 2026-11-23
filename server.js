@@ -1,7 +1,29 @@
 const http=require("http"),fs=require("fs"),path=require("path"),{WebSocketServer}=require("ws");
 const PORT=process.env.PORT||3000,W=800,H=560,DT=1/30,TAU=Math.PI*2;
 const page=fs.readFileSync(path.join(__dirname,"public","index.html"));
-const srv=http.createServer((q,r)=>{r.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});r.end(page)});
+const LB_FILE=path.join(__dirname,"leaderboard.json");
+
+let LB={1:[],2:[],3:[],4:[],5:[],6:[]};
+try{
+ if(fs.existsSync(LB_FILE)){
+  const parsed=JSON.parse(fs.readFileSync(LB_FILE,"utf8"));
+  for(let n=1;n<=6;n++)if(Array.isArray(parsed[n]))LB[n]=parsed[n].slice(0,15);
+ }
+}catch(e){}
+
+function saveLB(){
+ try{fs.writeFileSync(LB_FILE,JSON.stringify(LB))}catch(e){}
+}
+
+const srv=http.createServer((q,r)=>{
+ if(q.url&&q.url.startsWith("/api/lb")){
+  r.writeHead(200,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"});
+  r.end(JSON.stringify(LB));
+  return;
+ }
+ r.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});
+ r.end(page);
+});
 const wss=new WebSocketServer({server:srv,maxPayload:2048}),rooms=new Map();
 
 const MAX_PLAYERS=6;
@@ -9,6 +31,37 @@ const MAX_COMBOS=2;
 const MAX_SUPER=1;
 const MAX_WAVE=50;
 const MAX_SKINS=8;
+
+// Rangs Ranked et temps attendu (en secondes) pour finir la vague 50 et monter au rang suivant
+const RANKS=[
+ {id:0,name:"Bronze",target:24*60},
+ {id:1,name:"Argent",target:22*60},
+ {id:2,name:"Or",target:20*60},
+ {id:3,name:"Platine",target:18*60+30},
+ {id:4,name:"Diamant",target:17*60},
+ {id:5,name:"Maître",target:15*60+30},
+ {id:6,name:"Grand Maître",target:14*60+15},
+ {id:7,name:"Légende",target:13*60+15}
+];
+
+const RARITIES=[
+ {id:0,name:"Commun",mult:1.0},
+ {id:1,name:"Rare",mult:1.25},
+ {id:2,name:"Épique",mult:1.55},
+ {id:3,name:"Légendaire",mult:2.0}
+];
+
+function rollRarity(lvl){
+ const l=Math.min(25,Math.max(1,lvl));
+ const leg=4+l*0.30;      // 4% -> 11.5%
+ const epi=12+l*0.40;     // 12% -> 22%
+ const rar=28+l*0.20;     // 28% -> 33%
+ const roll=Math.random()*100;
+ if(roll<leg)return 3;
+ if(roll<leg+epi)return 2;
+ if(roll<leg+epi+rar)return 1;
+ return 0;
+}
 
 const SKIN_PASSIVES=[
  {name:"Polyvalent",desc:"+10 % XP gemmes · Aimant +20 %",apply:p=>{p.S.xpMult*=1.10;p.S.magnet*=1.20}},
@@ -22,19 +75,71 @@ const SKIN_PASSIVES=[
 ];
 
 const UPS=[
- ["Dégâts +30 %","Tes tirs frappent plus fort",p=>p.S.dmg*=1.3],
- ["Cadence +25 %","Tu tires plus vite",p=>p.S.rate*=1.25],
- ["Tir multiple","+1 projectile par salve",p=>p.S.multi++],
- ["Perforation","Les tirs traversent +1 ennemi",p=>p.S.pierce++],
- ["Vitesse +12 %","Tu te déplaces plus vite",p=>p.S.speed*=1.12],
- ["Aimant +40 %","Les gemmes viennent de plus loin",p=>p.S.magnet*=1.4],
- ["Régénération","+0,8 PV par seconde",p=>p.S.regen+=.8],
- ["Lames orbitales","+1 lame qui tourne autour de toi",p=>p.S.orb++],
- ["Soin & armure","+25 PV max et soin complet",p=>{p.max+=25;p.hp=p.max}],
- ["Critique +20 %","20 % de chance d'infliger ×2,2 dégâts",p=>p.S.crit+=.20],
- ["Onde de choc","Explosion de zone tous les 6 tirs",p=>p.S.nova++],
- ["Balles ricochet","Les tirs rebondissent vers +1 ennemi",p=>p.S.bounce++],
- ["Aura de givre","Ralentit (-35 %) et blesse les proches",p=>p.S.frost++]
+ {
+  title:r=>`Dégâts +${Math.round(28*RARITIES[r].mult)} %`,
+  desc:r=>`Tes tirs frappent +${Math.round(28*RARITIES[r].mult)} % plus fort`,
+  apply:(p,r)=>{p.S.dmg*=(1+0.28*RARITIES[r].mult)}
+ },
+ {
+  title:r=>`Cadence +${Math.round(24*RARITIES[r].mult)} %`,
+  desc:r=>`Tu tires +${Math.round(24*RARITIES[r].mult)} % plus vite`,
+  apply:(p,r)=>{p.S.rate*=(1+0.24*RARITIES[r].mult)}
+ },
+ {
+  title:r=>r===3?"Tir multiple (+2)":"Tir multiple",
+  desc:r=>r===3?"+2 projectiles par salve":(r===2?"+1 projectile et +12 % dégâts":(r===1?"+1 projectile et +6 % dégâts":"+1 projectile par salve")),
+  apply:(p,r)=>{p.S.multi+=(r===3?2:1);if(r===1)p.S.dmg*=1.06;if(r===2)p.S.dmg*=1.12}
+ },
+ {
+  title:r=>r===3?"Perforation (+2)":"Perforation",
+  desc:r=>r===3?"Les tirs traversent +2 ennemis":(r===2?"+1 perforation et +12 % dégâts":(r===1?"+1 perforation et +6 % dégâts":"Les tirs traversent +1 ennemi")),
+  apply:(p,r)=>{p.S.pierce+=(r===3?2:1);if(r===1)p.S.dmg*=1.06;if(r===2)p.S.dmg*=1.12}
+ },
+ {
+  title:r=>`Vitesse +${Math.round(11*RARITIES[r].mult)} %`,
+  desc:r=>`Tu te déplaces +${Math.round(11*RARITIES[r].mult)} % plus vite`,
+  apply:(p,r)=>{p.S.speed*=(1+0.11*RARITIES[r].mult)}
+ },
+ {
+  title:r=>`Aimant +${Math.round(38*RARITIES[r].mult)} %`,
+  desc:r=>`Portée d'attraction +${Math.round(38*RARITIES[r].mult)} %`,
+  apply:(p,r)=>{p.S.magnet*=(1+0.38*RARITIES[r].mult)}
+ },
+ {
+  title:r=>`Régén. +${(0.75*RARITIES[r].mult).toFixed(1)} PV/s`,
+  desc:r=>`Récupère +${(0.75*RARITIES[r].mult).toFixed(1)} PV par seconde`,
+  apply:(p,r)=>{p.S.regen+=0.75*RARITIES[r].mult}
+ },
+ {
+  title:r=>r===3?"Lames orbitales (+2)":"Lames orbitales",
+  desc:r=>r===3?"+2 lames qui tournent autour de toi":(r===2?"+1 lame et rotation +20 %":(r===1?"+1 lame et rotation +10 %":"+1 lame qui tourne autour de toi")),
+  apply:(p,r)=>{p.S.orb+=(r===3?2:1);if(r===1)p.S.orbSpd*=1.10;if(r===2)p.S.orbSpd*=1.20}
+ },
+ {
+  title:r=>`Soin & +${Math.round(24*RARITIES[r].mult)} PV`,
+  desc:r=>`+${Math.round(24*RARITIES[r].mult)} PV max et soin complet`,
+  apply:(p,r)=>{const b=Math.round(24*RARITIES[r].mult);p.max+=b;p.hp=p.max}
+ },
+ {
+  title:r=>`Critique +${Math.round(18*RARITIES[r].mult)} %`,
+  desc:r=>`+${Math.round(18*RARITIES[r].mult)} % de chance d'infliger ×2,2 dégâts`,
+  apply:(p,r)=>{p.S.crit+=0.18*RARITIES[r].mult}
+ },
+ {
+  title:r=>r>0?`Onde de choc (×${RARITIES[r].mult.toFixed(2)})`:"Onde de choc",
+  desc:r=>`Explosion de zone tous les 6 tirs (puissance ×${RARITIES[r].mult.toFixed(2)})`,
+  apply:(p,r)=>{p.S.nova++;p.S.novaPow*=(0.82+0.18*RARITIES[r].mult)}
+ },
+ {
+  title:r=>r>=2?"Balles ricochet (+2)":"Balles ricochet",
+  desc:r=>r>=2?"Les tirs rebondissent vers +2 ennemis":(r===1?"+1 ricochet et +8 % dégâts":"Les tirs rebondissent vers +1 ennemi"),
+  apply:(p,r)=>{p.S.bounce+=(r>=2?2:1);if(r===1)p.S.dmg*=1.08}
+ },
+ {
+  title:r=>`Aura de givre (-${Math.min(60,Math.round(32*RARITIES[r].mult))} %)`,
+  desc:r=>`Ralentit (-${Math.min(60,Math.round(32*RARITIES[r].mult))} %) et blesse les proches`,
+  apply:(p,r)=>{p.S.frost++;p.S.frostSlow=Math.max(p.S.frostSlow,Math.min(0.60,0.32*RARITIES[r].mult))}
+ }
 ];
 
 const COMBOS=[
@@ -91,7 +196,8 @@ const SPAWNS=[[-56,-34],[56,-34],[-56,34],[56,34],[0,-48],[0,48]];
 
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const dist2=(ax,ay,bx,by)=>{const dx=ax-bx,dy=ay-by;return dx*dx+dy*dy};
-const nextNeed=(lvl,nPl=1)=>Math.round((8+lvl*5+Math.floor(lvl*lvl*.45))*(1+(Math.max(1,nPl)-1)*0.22));
+// XP légèrement boostée (paliers adoucis + multiplicateur gemmes ×1,15)
+const nextNeed=(lvl,nPl=1)=>Math.round((7+lvl*4.2+Math.floor(lvl*lvl*.38))*(1+(Math.max(1,nPl)-1)*0.18));
 
 const bossHpScale=w=>(1+(Math.max(1,w)-1)*0.09)*Math.pow(1.55,Math.floor((Math.max(1,w)-1)/5));
 const bossDmgScale=w=>(1+(Math.max(1,w)-1)*0.06)*Math.pow(1.24,Math.floor((Math.max(1,w)-1)/5));
@@ -104,6 +210,19 @@ const cleanNick=(raw,i)=>{
  return s||("J"+(i+1));
 };
 const cleanSkin=raw=>Math.max(0,Math.min(MAX_SKINS-1,parseInt(raw,10)||0));
+const cleanRank=raw=>Math.max(0,Math.min(RANKS.length-1,parseInt(raw,10)||0));
+
+function isSkinTaken(r,sk,ignorePlayer){
+ return r.pl.some(p=>p!==ignorePlayer&&p.skin===sk);
+}
+function findFreeSkin(r,preferred,ignorePlayer){
+ const pref=cleanSkin(preferred);
+ if(!isSkinTaken(r,pref,ignorePlayer))return pref;
+ for(let i=0;i<MAX_SKINS;i++){
+  if(!isSkinTaken(r,i,ignorePlayer))return i;
+ }
+ return pref;
+}
 
 function buildPlayerStats(skinIdx){
  const p={
@@ -119,12 +238,14 @@ function buildPlayerStats(skinIdx){
  return p;
 }
 
-const mkP=(ws,i,name,skin=0)=>{
+const mkP=(ws,i,name,skin=0,rank=0)=>{
  const sp=SPAWNS[i%SPAWNS.length];
  const sk=cleanSkin(skin);
+ const rk=cleanRank(rank);
  const base=buildPlayerStats(sk);
  return {
-  ws,i,name:cleanNick(name,i),skin:sk,x:W/2+sp[0],y:H/2+sp[1],r:11,
+  ws,i,name:cleanNick(name,i),skin:sk,rank:rk,promoted:false,oldRank:rk,
+  x:W/2+sp[0],y:H/2+sp[1],r:11,
   hp:base.hp,max:base.max,down:0,rev:0,revBy:0,inv:0,dx:0,dy:0,cd:0,dc:0,dsh:0,pend:0,ch:null,sc:0,linked:0,
   invList:Array(UPS.length).fill(0),fusedLvl:Array(COMBOS.length).fill(0),combos:[],supers:[],
   st:{kills:0,dmg:0,taken:0,revives:0,gems:0},
@@ -133,10 +254,44 @@ const mkP=(ws,i,name,skin=0)=>{
 };
 
 function reset(r){
- Object.assign(r,{E:[],B:[],G:[],X:[],ev:[],links:[],fullLink:0,t:0,eid:0,frostT:0,kills:0,xp:0,lvl:1,need:nextNeed(1,r.pl.length),wave:0,toSpawn:0,spawnCd:0,waveDelay:0.8,paused:false,pausedBy:-1});
- r.pl.forEach((p,i)=>Object.assign(p,mkP(p.ws,i,p.name,p.skin)));
+ Object.assign(r,{E:[],B:[],G:[],X:[],ev:[],links:[],fullLink:0,t:0,eid:0,frostT:0,kills:0,xp:0,lvl:1,need:nextNeed(1,r.pl.length),wave:0,toSpawn:0,spawnCd:0,waveDelay:0.8,paused:false,pausedBy:-1,recorded:false});
+ r.pl.forEach((p,i)=>Object.assign(p,mkP(p.ws,i,p.name,p.skin,p.rank)));
 }
-const offer=p=>{p.ch=UPS.map((_,i)=>i).sort(()=>Math.random()-.5).slice(0,3)};
+const offer=(p,lvl=1)=>{
+ const picks=UPS.map((_,i)=>i).sort(()=>Math.random()-.5).slice(0,3);
+ p.ch=picks.map(u=>({u,r:rollRarity(lvl)}));
+};
+
+function onVictory(r){
+ if(r.recorded)return;
+ r.recorded=true;
+ const n=Math.max(1,Math.min(6,r.pl.length));
+ const tm=Math.round(r.t*10)/10;
+
+ // Évaluation Ranked pour chaque joueur
+ for(const p of r.pl){
+  p.oldRank=p.rank;
+  p.promoted=false;
+  const target=RANKS[p.rank].target;
+  if(r.t<=target&&p.rank<RANKS.length-1){
+   p.rank++;
+   p.promoted=true;
+  }
+ }
+
+ // Enregistrement dans le classement par nombre de joueurs
+ const entry={
+  tm,
+  lvl:r.lvl,
+  kills:r.kills,
+  date:new Date().toISOString().slice(0,10),
+  players:r.pl.map(p=>({name:p.name,skin:p.skin,rank:p.rank}))
+ };
+ LB[n].push(entry);
+ LB[n].sort((a,b)=>a.tm-b.tm);
+ if(LB[n].length>15)LB[n]=LB[n].slice(0,15);
+ saveLB();
+}
 
 function comboHint(p,uIdx){
  const nextInv=p.invList.slice();
@@ -178,8 +333,8 @@ function comboHint(p,uIdx){
  return null;
 }
 
-function applyUpgrade(r,p,uIdx){
- UPS[uIdx][2](p);
+function applyUpgrade(r,p,uIdx,rarIdx=0){
+ UPS[uIdx].apply(p,rarIdx);
  p.invList[uIdx]++;
 
  for(const sup of p.supers){
@@ -245,7 +400,7 @@ function spawnBoss(r,forcedType){
  const bType=forcedType!==undefined?forcedType:Math.floor((w/5-1)%5);
  const [x,y]=edgePos(32);
 
- let e={id:++r.eid,k:4,bk:bType,r:30,xp:14+Math.floor(w/2),d:26*nDmg*scDmg,bd:13*nDmg*scDmg,sh:2.0,sp2:3.2,sp3:5.5,dash:0,chain:0,windup:0,spiral:0,vx:0,vy:0,slow:0,slowVal:0};
+ let e={id:++r.eid,k:4,bk:bType,r:30,xp:15+Math.floor(w/2),d:26*nDmg*scDmg,bd:13*nDmg*scDmg,sh:2.0,sp2:3.2,sp3:5.5,dash:0,chain:0,windup:0,spiral:0,vx:0,vy:0,slow:0,slowVal:0};
  if(bType===0){e.hp=(145+w*24)*nHp*scHp;e.sp=38;e.r=32;e.d=30*nDmg*scDmg}
  else if(bType===1){e.hp=(120+w*20)*nHp*scHp;e.sp=64;e.r=26;e.d=24*nDmg*scDmg}
  else if(bType===2){e.hp=(130+w*21)*nHp*scHp;e.sp=34;e.r=28}
@@ -350,7 +505,7 @@ function tick(r){
  const pl=r.pl,al=pl.filter(p=>!p.down);
  const pRate=1+(pl.length-1)*0.12;
 
- // Liens d'escouade (bonus équilibré)
+ // Liens d'escouade
  r.links=[];
  for(const p of pl)p.linked=0;
  const linkDist2=205*205;
@@ -383,7 +538,6 @@ function tick(r){
   p.hp=Math.min(p.max,p.hp+(p.S.regen+regenBonus)*DT);
   p.cd-=DT;
 
-  // Aura de givre
   if(p.S.frost>0){
    const fr=(92+p.S.frost*22)*p.S.frostRad;
    const fr2=fr*fr;
@@ -416,7 +570,6 @@ function tick(r){
   }
  }
 
- // Projectiles joueurs (avec Critique, Onde de choc et Ricochet)
  const bounceMax2=235*235;
  for(const b of r.B){
   b.x+=b.vx*DT;b.y+=b.vy*DT;b.l-=DT;
@@ -460,7 +613,6 @@ function tick(r){
  }
  r.B=r.B.filter(b=>b.l>0);
 
- // Mouvements et attaques des ennemis
  for(const e of r.E){
   if(e.slow>0){e.slow-=DT;if(e.slow<=0)e.slowVal=0}
   const slowFactor=e.slow>0?(1-e.slowVal):1;
@@ -742,11 +894,11 @@ function tick(r){
   if(e.hp>0)return true;
   r.kills++;r.G.push({x:e.x,y:e.y,v:e.xp});r.ev.push([Math.round(e.x),Math.round(e.y),e.k]);
   if(e.k===6)explodeKamikaze(r,e);
-  if(e.k===4)for(const p of pl){p.pend++;if(!p.ch)offer(p);if(p.down){p.down=0;p.rev=0;p.revBy=0;p.inv=4.0}p.hp=Math.min(p.max,Math.max(p.hp,p.max*.5)+p.max*.35)}
+  if(e.k===4)for(const p of pl){p.pend++;if(!p.ch)offer(p,r.lvl);if(p.down){p.down=0;p.rev=0;p.revBy=0;p.inv=4.0}p.hp=Math.min(p.max,Math.max(p.hp,p.max*.5)+p.max*.35)}
   return false;
  });
 
- // Réanimation accélérée + immunité à la réanimation
+ // Réanimation accélérée + immunité
  const revRad2=62*62;
  for(const d of pl)if(d.down){
   const helpers=al.filter(p=>!p.down&&dist2(p.x,p.y,d.x,d.y)<revRad2);
@@ -784,6 +936,7 @@ function tick(r){
  }else if(r.E.length===0){
   if(r.wave>=MAX_WAVE){
    r.st="win";
+   onVictory(r);
    return;
   }
   r.waveDelay-=DT;
@@ -810,7 +963,6 @@ function tick(r){
   }
  }
 
- // Lames orbitales
  const live=pl.filter(p=>!p.down);
  for(const p of live)if(p.S.orb)for(let k=0;k<p.S.orb;k++){
   const a=r.t*3*p.S.orbSpd+k*TAU/p.S.orb,bx=p.x+Math.cos(a)*46,by=p.y+Math.sin(a)*46;
@@ -849,12 +1001,12 @@ function tick(r){
   }
   const pickR=n.r+6;
   if(nd2<pickR*pickR){
-   r.xp+=g.v*n.S.xpMult;
+   r.xp+=g.v*1.15*n.S.xpMult;
    n.st.gems++;
    if(n.S.gemHeal)n.hp=Math.min(n.max,n.hp+n.S.gemHeal);
    while(r.xp>=r.need){
     r.xp-=r.need;r.lvl++;r.need=nextNeed(r.lvl,pl.length);
-    for(const p of pl){p.pend++;if(p.ch===null)offer(p)}
+    for(const p of pl){p.pend++;if(p.ch===null)offer(p,r.lvl)}
    }
    return false;
   }
@@ -883,20 +1035,22 @@ function snap(r){
   bHp=tot>0?R(cur/tot*100):0;
  }
  const ended=(r.st==="over"||r.st==="win");
- const endStats=ended?r.pl.map(p=>({
-  i:p.i,name:p.name,skin:p.skin,kills:p.st.kills,dmg:R(p.st.dmg),taken:R(p.st.taken),rev:p.st.revives,gems:p.st.gems,cmb:p.combos,sup:p.supers
- })):null;
+ const teamStats=r.pl.map(p=>({
+  i:p.i,name:p.name,skin:p.skin,rank:p.rank,oldRank:p.oldRank,promoted:p.promoted,
+  kills:p.st.kills,dmg:R(p.st.dmg),taken:R(p.st.taken),rev:p.st.revives,gems:p.st.gems,cmb:p.combos,sup:p.supers
+ }));
 
  const wd=(r.E.length===0&&r.toSpawn===0&&r.wave>0&&r.wave<MAX_WAVE)?Math.max(0,R(r.waveDelay*10)/10):0;
 
  const shared={
-  t:"s",st:r.st,code:r.code,n:r.pl.length,names:r.pl.map(p=>p.name),skins:r.pl.map(p=>p.skin),
+  t:"s",st:r.st,code:r.code,n:r.pl.length,names:r.pl.map(p=>p.name),skins:r.pl.map(p=>p.skin),ranks:r.pl.map(p=>p.rank),
   tm:R(r.t*10)/10,k:r.kills,l:r.lvl,xp:R(r.xp*10)/10,nd:r.need,lks:r.links,flk:r.fullLink,
-  wv:r.wave,mw:MAX_WAVE,rem:r.E.length+r.toSpawn,wd:wd,pz:pz,mpz:r.paused?1:0,pby:r.pausedBy,bn:bName,bh:bHp,stats:endStats,
+  wv:r.wave,mw:MAX_WAVE,rem:r.E.length+r.toSpawn,wd:wd,pz:pz,mpz:r.paused?1:0,pby:r.pausedBy,bn:bName,bh:bHp,
+  stats:teamStats,lb:ended?LB:null,
   p:r.pl.map(p=>[
    R(p.x),R(p.y),R(p.hp),p.max,p.down,R(p.rev*100)/100,p.inv>0?1:0,p.pend,R(85*p.S.magnet),
    R(Math.max(0,p.dc)*10)/10,p.S.orb,p.ch!==null?1:0,p.dsh>0?1:0,p.sc,p.S.orbSpd,p.linked,p.skin,
-   p.revBy||0,p.S.frost>0?R((92+p.S.frost*22)*p.S.frostRad):0
+   p.revBy||0,p.S.frost>0?R((92+p.S.frost*22)*p.S.frostRad):0,p.st.kills,p.rank
   ]),
   E:r.E.map(e=>[R(e.x),R(e.y),e.k,R(e.hp/e.mh*100),e.bk||0,(e.dash>0||e.windup>0||e.spiral>0)?1:0,e.slow>0?1:0]),
   B:r.B.map(x=>[R(x.x),R(x.y),R(x.vx),R(x.vy),x.o,x.hv||0]),
@@ -912,14 +1066,14 @@ function snap(r){
   const rateM=full?1.22:(p.linked===1?1.12:1);
   const dmgEff=getEffectiveDmgMult(p);
   const personal=JSON.stringify({
-   me:p.i,inv:p.invList,cmb:p.combos,sup:p.supers,
+   me:p.i,myRank:p.rank,inv:p.invList,cmb:p.combos,sup:p.supers,
    stMe:{
     dmg:R(dmgEff*100)/100,
     rate:R((p.S.rate*rateM/.52)*10)/10,
     multi:p.S.multi,
     pierce:p.S.pierce
    },
-   ch:p.ch?p.ch.map(i=>[i,UPS[i][0],UPS[i][1],comboHint(p,i)]):null
+   ch:p.ch?p.ch.map(c=>[c.u,UPS[c.u].title(c.r),UPS[c.u].desc(c.r),comboHint(p,c.u),c.r]):null
   }).slice(1);
   p.ws.send(sharedPrefix+","+personal);
  }
@@ -934,16 +1088,18 @@ wss.on("connection",ws=>{
    let r=rooms.get(c);
    if(!r){r={code:c,pl:[],st:"wait"};reset(r);rooms.set(c,r)}
    if(r.pl.length>=MAX_PLAYERS)return ws.send(JSON.stringify({t:"full"}));
-   const p=mkP(ws,r.pl.length,d.name,d.skin);
+   const freeSk=findFreeSkin(r,d.skin,null);
+   const p=mkP(ws,r.pl.length,d.name,freeSk,d.rank);
    r.pl.push(p);ws.r=r;ws.p=p;
    if(r.st==="wait")r.need=nextNeed(1,r.pl.length);
-   broadcast(r,{t:"chat",sys:1,txt:p.name+" a rejoint l'escouade."});
+   broadcast(r,{t:"chat",sys:1,txt:p.name+" ("+SKIN_PASSIVES[freeSk].name+") a rejoint l'escouade."});
    return;
   }
   const r=ws.r,p=ws.p;if(!r||!p)return;
   if(d.t==="in"){p.dx=Math.max(-1,Math.min(1,+d.dx||0));p.dy=Math.max(-1,Math.min(1,+d.dy||0))}
   else if(d.t==="skin"&&r.st==="wait"){
    const sk=cleanSkin(d.skin);
+   if(isSkinTaken(r,sk,p))return;
    const base=buildPlayerStats(sk);
    p.skin=sk;p.max=base.max;p.hp=base.hp;p.S=base.S;
   }
@@ -955,11 +1111,12 @@ wss.on("connection",ws=>{
    if(msg)broadcast(r,{t:"chat",i:p.i,name:p.name,txt:msg});
   }
   else if(d.t==="pick"&&p.ch&&p.ch[d.i]!=null){
-   applyUpgrade(r,p,p.ch[d.i]);
+   const choice=p.ch[d.i];
+   applyUpgrade(r,p,choice.u,choice.r);
    p.pend=Math.max(0,p.pend-1);
    p.ch=null;
    p.inv=Math.max(p.inv,.6);
-   if(p.pend>0)offer(p);
+   if(p.pend>0)offer(p,r.lvl);
   }
   else if(d.t==="pause"&&r.st==="play"){
    r.paused=!r.paused;
@@ -984,4 +1141,4 @@ wss.on("connection",ws=>{
   }
  });
 });
-srv.listen(PORT,"0.0.0.0",()=>console.log("Survivor Squad (Patch Pouvoirs, Images, Skins & Optis) sur le port "+PORT));
+srv.listen(PORT,"0.0.0.0",()=>console.log("Survivor Squad v1.4 (Ranked, Raretés & Classement) sur le port "+PORT));

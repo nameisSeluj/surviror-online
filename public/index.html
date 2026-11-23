@@ -62,51 +62,52 @@ canvas{
   z-index:10;
 }
 .pn{
-  width:min(100%,580px);
+  width:min(100%,610px);
   max-height:100%;
   overflow:auto;
   background:var(--panel);
   border:2px solid var(--border);
   box-shadow:0 6px 0 #0d0b09, 0 20px 50px rgba(0,0,0,.7);
   border-radius:8px;
-  padding:clamp(11px,2vw,18px);
+  padding:clamp(11px,2vw,16px);
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:clamp(6px,1.2vw,9px);
+  gap:clamp(6px,1.1vw,9px);
   text-align:center;
   animation:pop .18s ease-out;
 }
-.pn.wide{width:min(100%,720px)}
+.pn.wide{width:min(100%,750px)}
 @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .pn h2{
   margin:0;
   font-family:Georgia,"Times New Roman",serif;
   letter-spacing:.04em;
   text-transform:uppercase;
-  font-size:clamp(1.15rem,3.1vw,1.7rem);
+  font-size:clamp(1.1rem,3vw,1.65rem);
   color:var(--gold);
   text-shadow:0 2px 0 #0b0907;
 }
 .pn p{
   margin:0;
   color:var(--muted);
-  font-size:clamp(.72rem,1.6vw,.83rem);
+  font-size:clamp(.72rem,1.55vw,.82rem);
 }
-.row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;width:100%}
-button,input{
+.row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;align-items:center;width:100%}
+button,input,select{
   font:inherit;
   border:2px solid var(--border);
   border-radius:6px;
   background:var(--panel-2);
   color:var(--text);
-  padding:7px 12px;
+  padding:6px 11px;
 }
 button{
   cursor:pointer;
   font-weight:700;
   box-shadow:0 3px 0 #0d0b09;
   transition:transform .08s,border-color .1s,background .1s;
+  font-size:.82rem;
 }
 button:hover{border-color:var(--gold);background:#322b23}
 button:active{transform:translateY(2px);box-shadow:0 1px 0 #0d0b09}
@@ -120,10 +121,18 @@ input{
   background:#14110e;
   font-weight:700;
 }
-input:focus{outline:none;border-color:var(--gold)}
-#rc{width:min(100%,135px);text-transform:uppercase;text-align:center;letter-spacing:.15em}
-#nick{width:min(100%,180px);text-align:center;letter-spacing:.03em}
-#lk{text-transform:none;letter-spacing:0;font-size:.78rem;width:min(100%,260px);font-weight:400}
+input:focus,select:focus{outline:none;border-color:var(--gold)}
+select{
+  cursor:pointer;
+  font-weight:700;
+  background:#14110e;
+  color:var(--gold);
+}
+select option{background:#1e1a16;color:var(--text)}
+select option:disabled{color:#665c50}
+#rc{width:min(100%,130px);text-transform:uppercase;text-align:center;letter-spacing:.15em}
+#nick{width:min(100%,175px);text-align:center;letter-spacing:.03em}
+#lk{text-transform:none;letter-spacing:0;font-size:.76rem;width:min(100%,250px);font-weight:400}
 button.main{
   background:var(--gold);
   border-color:#f4c56a;
@@ -131,27 +140,53 @@ button.main{
   font-weight:900;
   text-transform:uppercase;
   letter-spacing:.05em;
-  padding:8px 18px;
-  font-size:.86rem;
+  padding:8px 17px;
+  font-size:.84rem;
   box-shadow:0 4px 0 #7a5212;
 }
 button.main:hover{background:#f0b548}
 button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
 
-/* Sélecteur de skin avec image et bonus natif */
-.skin-bar{
+/* Bandeau Ranked dans le lobby */
+.rank-banner{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:10px;
-  width:min(100%,420px);
+  width:min(100%,460px);
+  background:#14110e;
+  border:1.5px solid #3d3328;
+  border-radius:6px;
+  padding:6px 12px;
+  font-size:.75rem;
+}
+.rank-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:2px 8px;
+  border-radius:4px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  font-size:.72rem;
+  border:1.5px solid currentColor;
+  background:rgba(0,0,0,.35);
+}
+.rank-goal{color:#cbbba6;text-align:right;line-height:1.25}
+.rank-goal b{color:var(--gold)}
+
+/* Sélecteur de classe déroulant */
+.skin-bar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:min(100%,460px);
   background:#161310;
   border:1.5px solid #3a3026;
   border-radius:6px;
-  padding:6px 10px;
+  padding:7px 10px;
 }
-.skin-bar button{padding:5px 10px;font-size:.84rem}
-.skin-info{display:flex;align-items:center;gap:10px;text-align:left;flex:1;justify-content:center}
 .skin-img{
   width:42px;height:42px;
   border-radius:50%;
@@ -159,9 +194,9 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   border:2px solid var(--gold);
   flex-shrink:0;
 }
-.skin-meta{display:flex;flex-direction:column;gap:1px}
-.skin-meta b{color:var(--gold);font-size:.86rem;text-transform:uppercase;letter-spacing:.04em}
-.skin-meta span{color:#59b878;font-size:.71rem;font-weight:700}
+.skin-ctrl{display:flex;flex-direction:column;gap:4px;flex:1;text-align:left}
+.skin-ctrl select{width:100%;padding:5px 8px;font-size:.8rem}
+.skin-ctrl span{color:#59b878;font-size:.71rem;font-weight:700}
 
 .how{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%;text-align:left}
 .how div{
@@ -169,11 +204,11 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   border:1px solid #332a22;
   border-radius:6px;
   padding:6px 8px;
-  font-size:clamp(.65rem,1.45vw,.74rem);
+  font-size:clamp(.64rem,1.4vw,.73rem);
   color:#cbbba6;
-  line-height:1.3;
+  line-height:1.28;
 }
-.how b{color:var(--gold);text-transform:uppercase;font-size:.68rem;letter-spacing:.04em}
+.how b{color:var(--gold);text-transform:uppercase;font-size:.67rem;letter-spacing:.04em}
 .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%}
 .slot{
   border-radius:6px;
@@ -181,7 +216,7 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   border:2px dashed var(--border);
   color:var(--muted);
   font-weight:700;
-  font-size:.75rem;
+  font-size:.74rem;
   display:flex;
   align-items:center;
   gap:6px;
@@ -191,7 +226,7 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
 .slot.on{border-style:solid;color:#111;border-color:rgba(0,0,0,.45)}
 .slot img{width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.22);flex-shrink:0}
 .slot-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.slot small{display:block;font-size:.6rem;opacity:.85;font-weight:800;text-transform:uppercase}
+.slot small{display:block;font-size:.59rem;opacity:.88;font-weight:800;text-transform:uppercase}
 .stats{display:flex;gap:8px;width:100%}
 .stats div{
   flex:1;
@@ -200,12 +235,29 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   border-radius:6px;
   padding:6px 4px;
 }
-.stats b{display:block;font-family:Georgia,serif;font-size:clamp(.95rem,2.6vw,1.3rem);color:var(--text)}
-.stats small{color:var(--muted);font-size:.62rem;letter-spacing:.08em}
+.stats b{display:block;font-family:Georgia,serif;font-size:clamp(.95rem,2.6vw,1.28rem);color:var(--text)}
+.stats small{color:var(--muted);font-size:.61rem;letter-spacing:.08em}
 .pn .rec{color:var(--gold);font-weight:800;text-transform:uppercase;font-size:.76rem;letter-spacing:.05em}
 
-/* Guide des combos */
-#guideModal{
+.promo-box{
+  width:100%;
+  padding:7px 10px;
+  border-radius:6px;
+  background:rgba(229,169,60,.16);
+  border:1.5px solid var(--gold);
+  color:#ffd166;
+  font-weight:800;
+  font-size:.78rem;
+}
+.promo-box.miss{
+  background:rgba(156,142,124,.12);
+  border-color:#52473b;
+  color:#cbbba6;
+  font-weight:600;
+}
+
+/* Modals (Guide, Classement, Patch Notes, Tab Stats) */
+.modal-overlay{
   display:none;
   position:absolute;
   inset:0;
@@ -216,7 +268,7 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   padding:14px;
   border-radius:8px;
 }
-.guide-box{
+.modal-box{
   width:min(100%,760px);
   max-height:100%;
   overflow-y:auto;
@@ -227,9 +279,11 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   display:flex;
   flex-direction:column;
   gap:10px;
+  text-align:left;
 }
-.guide-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.guide-head h3{margin:0;color:var(--gold);font-family:Georgia,serif;text-transform:uppercase;font-size:1.05rem}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.modal-head h3{margin:0;color:var(--gold);font-family:Georgia,serif;text-transform:uppercase;font-size:1.05rem}
+
 .guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;text-align:left}
 .g-card{
   background:#161310;
@@ -245,7 +299,24 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
 .g-card span{color:#a89986;font-size:.67rem;display:block}
 .g-card em{font-style:normal;color:#f0e6d6;font-weight:700}
 
-/* Tableau de statistiques de fin de partie */
+/* Onglets Classement */
+.lb-tabs{display:flex;gap:5px;flex-wrap:wrap}
+.lb-tabs button{padding:4px 10px;font-size:.74rem}
+.lb-tabs button.act{background:var(--gold);color:#1a1308;border-color:#f4c56a}
+
+/* Patch Notes */
+.pn-ver{
+  background:#161310;
+  border:1px solid #382f26;
+  border-radius:6px;
+  padding:9px 11px;
+}
+.pn-ver.latest{border-color:var(--gold)}
+.pn-ver h4{margin:0 0 5px 0;color:var(--gold);font-size:.84rem;display:flex;justify-content:space-between}
+.pn-ver ul{margin:0;padding-left:18px;color:#dfd3c3;font-size:.74rem;line-height:1.45}
+.pn-ver li b{color:#f5ebd6}
+
+/* Tableau de statistiques */
 .tbl-wrap{
   width:100%;
   overflow-x:auto;
@@ -256,7 +327,7 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
 .stbl{
   width:100%;
   border-collapse:collapse;
-  font-size:clamp(.65rem,1.5vw,.76rem);
+  font-size:clamp(.65rem,1.45vw,.75rem);
   text-align:center;
 }
 .stbl th{
@@ -267,7 +338,7 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   letter-spacing:.04em;
   padding:6px 5px;
   border-bottom:1.5px solid #3a3026;
-  font-size:.62rem;
+  font-size:.61rem;
   white-space:nowrap;
 }
 .stbl th:first-child,.stbl td:first-child{text-align:left;padding-left:9px}
@@ -360,12 +431,12 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
 #chatToggle:hover{color:var(--gold);border-color:var(--gold)}
 #chatBox.typing #chatToggle,#chatBox.inLobby #chatToggle{display:none}
 
-/* Inventaire permanent en bas avec images */
+/* Inventaire permanent en bas */
 #invBar{
   display:none;
   position:absolute;
   left:10px;
-  right:96px;
+  right:168px;
   bottom:10px;
   background:rgba(22,19,16,.92);
   border:1.5px solid var(--border);
@@ -432,61 +503,75 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   cursor:help;
 }
 @media (pointer:coarse){
-  #invBar{right:165px}
+  #invBar{right:235px}
 }
 
-/* Bouton Pause en jeu */
-#pauseBtn{
+/* Boutons Pause & Tab en jeu */
+.hud-btns{
   display:none;
   position:absolute;
   right:10px;
   bottom:10px;
-  padding:6px 11px;
-  font-size:.72rem;
-  letter-spacing:.06em;
+  gap:5px;
+  z-index:6;
+}
+.hud-btns button{
+  padding:6px 9px;
+  font-size:.70rem;
+  letter-spacing:.05em;
   text-transform:uppercase;
   background:rgba(30,26,22,.92);
   border:2px solid var(--border);
   color:var(--text);
-  z-index:6;
 }
-#pauseBtn:hover{border-color:var(--gold);color:var(--gold)}
+.hud-btns button:hover{border-color:var(--gold);color:var(--gold)}
 @media (pointer:coarse){
-  #pauseBtn{right:84px;bottom:14px}
+  .hud-btns{right:82px;bottom:14px}
 }
 
-/* Cartes d'amélioration avec images */
+/* Cartes d'amélioration avec rareté */
 #pk{
   position:absolute;
   left:0;right:0;top:50%;
-  transform:translateY(-18%);
+  transform:translateY(-20%);
   display:flex;gap:12px;justify-content:center;align-items:stretch;
   pointer-events:none;padding:0 18px;
   z-index:12;
 }
 #pk button{
   pointer-events:auto;
-  flex:1;max-width:248px;
+  flex:1;max-width:254px;
   text-align:left;
-  display:flex;flex-direction:column;gap:6px;
+  display:flex;flex-direction:column;gap:5px;
   background:var(--panel);
-  border:2px solid var(--gold);
+  border:2px solid var(--rar-col,var(--gold));
   box-shadow:0 5px 0 #0b0907, 0 14px 30px rgba(0,0,0,.9);
-  padding:12px 13px;
-  font-size:clamp(.72rem,1.7vw,.85rem);
+  padding:11px 12px;
+  font-size:clamp(.72rem,1.7vw,.84rem);
   position:relative;
 }
 #pk button:hover{background:#2d261e;transform:translateY(-3px)}
+.rar-pill{
+  align-self:flex-start;
+  font-size:.60rem;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  padding:1px 6px;
+  border-radius:3px;
+  color:#120d0a;
+  background:var(--rar-col,#b8aea0);
+}
 .pk-top{display:flex;align-items:center;gap:9px}
 .pk-ico{
   width:34px;height:34px;
   border-radius:6px;
   background:#14110e;
-  border:1.5px solid #4a3f34;
+  border:1.5px solid var(--rar-col,#4a3f34);
   padding:3px;
   flex-shrink:0;
 }
-#pk b{color:var(--gold);font-size:.92rem;line-height:1.15}
+#pk b{color:var(--rar-col,var(--gold));font-size:.90rem;line-height:1.15}
 #pk small{color:#cbbba6;font-weight:400;line-height:1.3}
 #pk .cmbTag{
   margin-top:2px;
@@ -511,7 +596,7 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
 }
 #pk i{
   position:absolute;top:-11px;right:8px;
-  background:var(--gold);color:#1a1308;
+  background:var(--rar-col,var(--gold));color:#120d0a;
   border:1px solid #0b0907;
   border-radius:4px;font-style:normal;font-weight:900;font-size:.7rem;padding:2px 7px;
 }
@@ -520,8 +605,32 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   padding:5px 9px;border-radius:4px;color:var(--gold);font-weight:800;font-size:.85rem;
 }
 
+/* Tab Stats en direct */
+#tabModal{
+  display:none;
+  position:absolute;
+  inset:0;
+  background:rgba(10,8,6,.82);
+  z-index:22;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  border-radius:8px;
+}
+.tab-box{
+  width:min(100%,760px);
+  background:var(--panel);
+  border:2px solid var(--gold);
+  border-radius:8px;
+  padding:14px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  box-shadow:0 16px 40px rgba(0,0,0,.85);
+}
+
 /* Notifications */
-#tt{position:absolute;top:22%;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:4}
+#tt{position:absolute;top:24%;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:4}
 .t{
   padding:5px 14px;
   border-radius:4px;
@@ -557,19 +666,46 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   </div>
   <div id="pk"></div>
   <div id="tt"></div>
-  <button id="pauseBtn" aria-label="Pause">Pause [P]</button>
+  <div class="hud-btns" id="hudBtns">
+    <button id="tabBtn" type="button">Stats [Tab]</button>
+    <button id="pauseBtn" type="button">Pause [P]</button>
+  </div>
   <button id="dash" aria-label="Esquive">DASH</button>
   <div id="ov"></div>
-  <div id="guideModal"></div>
+  <div id="tabModal"></div>
+  <div id="guideModal" class="modal-overlay"></div>
+  <div id="lbModal" class="modal-overlay"></div>
+  <div id="patchModal" class="modal-overlay"></div>
 </div>
 <script>
 (function(){
-var W=800,H=560,cv=document.getElementById("c"),ctx=cv.getContext("2d"),ov=document.getElementById("ov"),pk=document.getElementById("pk"),pauseBtn=document.getElementById("pauseBtn"),invBar=document.getElementById("invBar"),guideModal=document.getElementById("guideModal");
+var W=800,H=560,cv=document.getElementById("c"),ctx=cv.getContext("2d"),ov=document.getElementById("ov"),pk=document.getElementById("pk");
+var hudBtns=document.getElementById("hudBtns"),pauseBtn=document.getElementById("pauseBtn"),tabBtn=document.getElementById("tabBtn"),invBar=document.getElementById("invBar");
+var guideModal=document.getElementById("guideModal"),lbModal=document.getElementById("lbModal"),patchModal=document.getElementById("patchModal"),tabModal=document.getElementById("tabModal");
 var chatBox=document.getElementById("chatBox"),chatLog=document.getElementById("chatLog"),chatIn=document.getElementById("chatIn"),chatToggle=document.getElementById("chatToggle");
-var best=0,savedNick="",savedSkin=0,ws,S=null,vis=[],keys={},ptr=null,PA=[],DEC=[],RINGS=[],FLOATS=[],GHOSTS=[],TR=[[],[],[],[],[],[]],tt=0,shake=0,lastHp=[],lastE=[],flashE={},BG=null,ovKey="",pkKey="",invKey="",last=0,lastIn="",idle=0;
+var best=0,savedNick="",savedSkin=0,savedRank=0,cachedLB={1:[],2:[],3:[],4:[],5:[],6:[]},lbTab=1;
+var ws,S=null,vis=[],keys={},ptr=null,PA=[],DEC=[],RINGS=[],FLOATS=[],GHOSTS=[],TR=[[],[],[],[],[],[]],tt=0,shake=0,lastHp=[],lastE=[],flashE={},BG=null,ovKey="",pkKey="",invKey="",last=0,lastIn="",idle=0,tabHeld=false;
 var FONT='"Trebuchet MS","Segoe UI",sans-serif',SERIF='Georgia,"Times New Roman",serif',TAU=Math.PI*2;
 var CO=["#59b878","#5b8fd9","#e09a3e","#d96277","#9b6bd9","#45b8b0"];
 var CO_DARK=["#2b663f","#2c4f87","#8c5a19","#853040","#573485","#226964"];
+
+var RANKS=[
+ {id:0,name:"Bronze",col:"#cd7f32",target:24*60},
+ {id:1,name:"Argent",col:"#c0c8d0",target:22*60},
+ {id:2,name:"Or",col:"#ffd166",target:20*60},
+ {id:3,name:"Platine",col:"#45b8b0",target:18*60+30},
+ {id:4,name:"Diamant",col:"#5b8fd9",target:17*60},
+ {id:5,name:"Maître",col:"#b06be8",target:15*60+30},
+ {id:6,name:"Grand Maître",col:"#e05656",target:14*60+15},
+ {id:7,name:"Légende",col:"#ff9f1c",target:13*60+15}
+];
+
+var RARITIES=[
+ {id:0,name:"Commun",col:"#b8aea0"},
+ {id:1,name:"Rare",col:"#5b8fd9"},
+ {id:2,name:"Épique",col:"#b06be8"},
+ {id:3,name:"Légendaire",col:"#ffd166"}
+];
 
 var SKINS=[
  {name:"Recrue",bonus:"+10 % XP gemmes · Aimant +20 %"},
@@ -582,41 +718,63 @@ var SKINS=[
  {name:"Faucheuse",bonus:"+1 Lame · +1 PV / 8 éliminations"}
 ];
 
+var PATCH_NOTES=[
+ {
+  ver:"v1.4 — Ranked, Raretés & Classes Uniques",
+  date:"Actuel",
+  latest:true,
+  items:[
+   "<b>Rareté des bonus</b> : chaque amélioration tire désormais une rareté (Commun, Rare ×1,25, Épique ×1,55, Légendaire ×2,0) qui amplifie ses effets.",
+   "<b>Système de Ranked</b> : 8 rangs (Bronze à Légende) avec un temps attendu pour finir la vague 50 — bats le chrono pour monter en rang.",
+   "<b>Classement par escouade</b> : tableau des meilleurs temps classés par nombre de joueurs (1J à 6J).",
+   "<b>Classes uniques & liste déroulante</b> : sélection par menu déroulant et interdiction d'avoir deux joueurs avec la même classe.",
+   "<b>Tab de stats & compteur de kills</b> : touche <b>Tab</b> en partie pour voir les stats détaillées + compteur d'éliminations en direct.",
+   "<b>Progression XP boostée</b> : gain d'XP par gemme augmenté (+15 %) et paliers adoucis."
+  ]
+ },
+ {
+  ver:"v1.3 — Pouvoirs, Images & Équilibrage",
+  date:"Précédent",
+  latest:false,
+  items:[
+   "Ajout de 4 pouvoirs (Critique, Onde de choc, Ricochet, Aura de givre), 3 combos et 28 fusions.",
+   "Passifs natifs et portraits dédiés pour les 8 classes.",
+   "Immunité de 4 secondes après une réanimation et pause allongée entre les vagues.",
+   "Équilibrage du Lien Total d'escouade et optimisation mémoire."
+  ]
+ },
+ {
+  ver:"v1.2 — Bosses, Co-op 6 Joueurs & Fusions",
+  date:"Archive",
+  latest:false,
+  items:[
+   "Extension à 6 joueurs en coopération jusqu'à la vague 50 avec 5 boss uniques.",
+   "Système de Super-Combos en fusionnant deux combos de somme de niveaux ≥ 3."
+  ]
+ }
+];
+
 var EC=["#c94a4a","#d97b38","#7e52a0","#cbb042","#9e2a3b","#4fb3bf","#ff6b2b","#b8432e","#4e8c6f","#8e44ad"];
 var ER=[11,8,17,10,30,10,9,13,12,13];
 var BOSS_COLS=["#9e2a3b","#c4492b","#3b7a9e","#7a3b9e","#b88628"];
 var UP_SHORT=["Dégâts","Cadence","Tir multi","Perforation","Vitesse","Aimant","Régén.","Lames","Armure","Critique","Onde choc","Ricochet","Givre"];
 
-// Icônes vectorielles SVG (images) pour chacun des 13 pouvoirs
 function svgUri(inner){
   return "data:image/svg+xml;utf8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'+inner+'</svg>');
 }
 var UP_IMGS=[
-  // 0 Dégâts
   svgUri('<path d="M24 4L28 8L13 23L9 19Z" fill="#e5a93c"/><path d="M7 21L11 25L6 28L4 26Z" fill="#d94e4e"/><circle cx="23" cy="9" r="3" fill="#fff3c4"/>'),
-  // 1 Cadence
   svgUri('<path d="M18 3L8 17h7l-2 12 11-14h-7z" fill="#ffd166" stroke="#8c5a19" stroke-width="1.5"/>'),
-  // 2 Tir multiple
   svgUri('<path d="M6 24L12 8M16 24V6M26 24L20 8" stroke="#5b8fd9" stroke-width="3" stroke-linecap="round"/><circle cx="12" cy="7" r="2.5" fill="#ffd166"/><circle cx="16" cy="5" r="2.5" fill="#ffd166"/><circle cx="20" cy="7" r="2.5" fill="#ffd166"/>'),
-  // 3 Perforation
   svgUri('<line x1="3" y1="16" x2="29" y2="16" stroke="#e5a93c" stroke-width="3"/><polygon points="29,16 22,11 22,21" fill="#ffd166"/><rect x="13" y="7" width="4" height="18" rx="1" fill="#d96277" opacity=".85"/>'),
-  // 4 Vitesse
   svgUri('<path d="M5 22c6 0 11-4 14-11l7 4c-3 7-9 11-18 11z" fill="#59b878"/><path d="M4 13h8M3 17h6" stroke="#9be8d8" stroke-width="2.2" stroke-linecap="round"/>'),
-  // 5 Aimant
   svgUri('<path d="M8 7v10a8 8 0 0016 0V7h-4v10a4 4 0 01-8 0V7z" fill="#d94e4e"/><rect x="8" y="6" width="4" height="4" fill="#e0e6ed"/><rect x="20" y="6" width="4" height="4" fill="#e0e6ed"/>'),
-  // 6 Régénération
   svgUri('<path d="M16 27S5 19.5 5 12a6 6 0 0111-3.3A6 6 0 0127 12c0 7.5-11 15-11 15z" fill="#59b878"/><path d="M16 11v8M12 15h8" stroke="#14110e" stroke-width="2.4" stroke-linecap="round"/>'),
-  // 7 Lames orbitales
   svgUri('<circle cx="16" cy="16" r="9" fill="none" stroke="#9c8e7c" stroke-dasharray="3 3" stroke-width="1.6"/><polygon points="16,2 19,7 16,10 13,7" fill="#e0e6ed"/><polygon points="16,30 19,25 16,22 13,25" fill="#e0e6ed"/><polygon points="2,16 7,13 10,16 7,19" fill="#e0e6ed"/><polygon points="30,16 25,13 22,16 25,19" fill="#e0e6ed"/>'),
-  // 8 Soin & armure
   svgUri('<path d="M16 3L27 7v8c0 7.5-4.8 12.2-11 14C9.8 27.2 5 22.5 5 15V7z" fill="#5b8fd9" stroke="#1e3a66" stroke-width="1.5"/><path d="M16 10v10M11 15h10" stroke="#f0e6d6" stroke-width="2.6" stroke-linecap="round"/>'),
-  // 9 Critique
   svgUri('<polygon points="16,2 20,11 30,12 22,19 25,29 16,23 7,29 10,19 2,12 12,11" fill="#ffd166" stroke="#b87314" stroke-width="1.4"/>'),
-  // 10 Onde de choc
   svgUri('<circle cx="16" cy="16" r="4" fill="#ff9f1c"/><circle cx="16" cy="16" r="9" fill="none" stroke="#e5a93c" stroke-width="2.2"/><circle cx="16" cy="16" r="14" fill="none" stroke="#e05656" stroke-width="1.8" stroke-dasharray="4 3"/>'),
-  // 11 Ricochet
   svgUri('<polyline points="5,25 15,8 25,22 28,12" fill="none" stroke="#45b8b0" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="15" cy="8" r="2.8" fill="#ffd166"/><polygon points="29,9 24,12 28,15" fill="#45b8b0"/>'),
-  // 12 Aura de givre
   svgUri('<g stroke="#7ce8ff" stroke-width="2.3" stroke-linecap="round"><line x1="16" y1="3" x2="16" y2="29"/><line x1="4.7" y1="9.5" x2="27.3" y2="22.5"/><line x1="27.3" y1="9.5" x2="4.7" y2="22.5"/></g><circle cx="16" cy="16" r="3.5" fill="#d9f9ff"/>')
 ];
 
@@ -669,7 +827,16 @@ try{
   best=parseInt(localStorage.getItem("survivor-best"),10)||0;
   savedNick=localStorage.getItem("survivor-nick")||"";
   savedSkin=Math.max(0,Math.min(SKINS.length-1,parseInt(localStorage.getItem("survivor-skin"),10)||0));
+  savedRank=Math.max(0,Math.min(RANKS.length-1,parseInt(localStorage.getItem("survivor-rank"),10)||0));
 }catch(e){}
+
+function fetchLB(cb){
+  fetch("/api/lb").then(function(r){return r.json()}).then(function(d){
+    if(d)cachedLB=d;
+    if(cb)cb();
+  }).catch(function(){if(cb)cb()});
+}
+fetchLB();
 
 function pName(i){return (S&&S.names&&S.names[i])?S.names[i]:("J"+(i+1))}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
@@ -680,7 +847,17 @@ function toast(m,c){
   setTimeout(function(){d.remove()},2100);
 }
 function fmt(s){s=Math.floor(s);return Math.floor(s/60)+":"+("0"+s%60).slice(-2)}
+function fmtPrecise(s){
+  var m=Math.floor(s/60);
+  var sec=(s%60).toFixed(1);
+  if(parseFloat(sec)<10)sec="0"+sec;
+  return m+":"+sec;
+}
 function fmtNum(n){return Math.round(n||0).toLocaleString("fr-FR")}
+function rankBadge(rkIdx){
+  var rk=RANKS[rkIdx]||RANKS[0];
+  return '<span class="rank-pill" style="color:'+rk.col+'">'+rk.name+'</span>';
+}
 
 /* ---------- Rendu des skins & images pré-cachées ---------- */
 function drawSkinDetail(g,skin,aimAngle){
@@ -748,7 +925,6 @@ function getSkinDataUrl(skinIdx,colIdx){
   return SKIN_CACHE[k];
 }
 
-// Sprite pré-caché de la gemme d'XP pour éviter 100+ tracés vectoriels/frame
 var GEM_SPR=null;
 function getGemSprite(){
   if(GEM_SPR)return GEM_SPR;
@@ -761,6 +937,17 @@ function getGemSprite(){
   return GEM_SPR;
 }
 
+function buildSkinSelectHtml(id,selectedIdx,takenMap){
+  var opts=SKINS.map(function(sk,idx){
+    var takenBy=takenMap&&takenMap[idx];
+    var dis=takenBy?" disabled":"";
+    var suffix=takenBy?(" (Prise par "+esc(takenBy)+")"):(" — "+sk.bonus);
+    return '<option value="'+idx+'"'+(idx===selectedIdx?" selected":"")+dis+'>'+sk.name+suffix+'</option>';
+  }).join("");
+  return '<select id="'+id+'">'+opts+'</select>';
+}
+
+/* ---------- Modals : Guide, Classement, Patch Notes ---------- */
 function openGuide(){
   var cHtml=COMBO_DEFS.map(function(c){
     return '<div class="g-card"><b>★ '+c.name+'</b><span>Recette : '+c.reqTxt+'</span><em>'+c.desc+'</em></div>';
@@ -769,15 +956,76 @@ function openGuide(){
     return '<div class="g-card sup"><b>✦ '+s.name+'</b><span>Fusion : '+s.reqTxt+'</span><em>'+s.desc+'</em></div>';
   }).join("");
   guideModal.style.display="flex";
-  guideModal.innerHTML='<div class="guide-box">'+
-    '<div class="guide-head"><button class="back" id="closeGuide">← Retour</button><h3>Guide des Combos & Fusions</h3><span style="width:74px"></span></div>'+
-    '<p style="margin:0;color:var(--muted);font-size:.74rem">Débloque jusqu’à <b>2 Combos</b> actifs (cumulables en niveaux). Dès que la somme des niveaux de tes 2 combos atteint <b>3</b>, ils fusionnent en <b>1 Super-Combo</b>. Le <b>Lien Total</b> (tous reliés) accorde <b>Dégâts ×1,25 · Cadence ×1,22 · +1,2 PV/s · Armure +12 %</b>.</p>'+
+  guideModal.innerHTML='<div class="modal-box">'+
+    '<div class="modal-head"><button class="back" id="closeGuide">← Retour</button><h3>Guide des Combos & Fusions</h3><span style="width:74px"></span></div>'+
+    '<p style="margin:0;color:var(--muted);font-size:.74rem">Les bonus tirent une rareté (<b style="color:#b8aea0">Commun</b>, <b style="color:#5b8fd9">Rare</b>, <b style="color:#b06be8">Épique</b>, <b style="color:#ffd166">Légendaire</b>). Dès que la somme des niveaux de tes 2 combos atteint <b>3</b>, ils fusionnent en <b>1 Super-Combo</b>.</p>'+
     '<div class="guide-grid">'+cHtml+'</div>'+
     '<div class="guide-grid">'+sHtml+'</div>'+
   '</div>';
   document.getElementById("closeGuide").onclick=function(){guideModal.style.display="none"};
 }
 
+function renderLBModal(){
+  var tabs="";
+  for(var n=1;n<=6;n++){
+    tabs+='<button type="button" class="'+(lbTab===n?"act":"")+'" data-n="'+n+'">'+n+' Joueur'+(n>1?"s":"")+'</button>';
+  }
+  var list=(cachedLB&&cachedLB[lbTab])||[];
+  var rowsHtml=list.length?list.map(function(e,idx){
+    var pList=(e.players||[]).map(function(pl,pi){
+      var sk=SKINS[pl.skin||0];
+      return '<span style="display:inline-flex;align-items:center;margin-right:6px"><img class="p-ava" src="'+getSkinDataUrl(pl.skin||0,pi)+'" alt="">'+esc(pl.name)+' <small style="color:var(--muted);margin-left:3px">('+sk.name+')</small></span>';
+    }).join("");
+    return '<tr>'+
+      '<td class="'+(idx<3?"top":"")+'">#'+(idx+1)+'</td>'+
+      '<td class="'+(idx===0?"top":"")+'"><b>'+fmtPrecise(e.tm)+'</b></td>'+
+      '<td>Niv. '+e.lvl+'</td>'+
+      '<td>'+fmtNum(e.kills)+'</td>'+
+      '<td style="white-space:normal;text-align:left">'+pList+'</td>'+
+      '<td style="color:var(--muted)">'+esc(e.date||"")+'</td>'+
+    '</tr>';
+  }).join(""):'<tr><td colspan="6" style="padding:14px;color:var(--muted);text-align:center">Aucun temps enregistré pour '+lbTab+' joueur'+(lbTab>1?"s":"")+' (termine la vague 50 pour apparaître ici).</td></tr>';
+
+  var ranksLegend=RANKS.map(function(rk){
+    return '<span style="font-size:.66rem;color:'+rk.col+';border:1px solid '+rk.col+';padding:1px 6px;border-radius:4px"><b>'+rk.name+'</b> : &lt; '+fmt(rk.target)+'</span>';
+  }).join(" ");
+
+  lbModal.style.display="flex";
+  lbModal.innerHTML='<div class="modal-box">'+
+    '<div class="modal-head"><button class="back" id="closeLB">← Retour</button><h3>Classement Vague 50</h3><span style="width:74px"></span></div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center"><span style="font-size:.68rem;color:var(--muted);margin-right:4px">Objectifs Ranked :</span>'+ranksLegend+'</div>'+
+    '<div class="lb-tabs" id="lbTabs">'+tabs+'</div>'+
+    '<div class="tbl-wrap"><table class="stbl">'+
+      '<thead><tr><th>#</th><th>Temps</th><th>Niveau</th><th>Kills</th><th style="text-align:left">Escouade & Classes</th><th>Date</th></tr></thead>'+
+      '<tbody>'+rowsHtml+'</tbody>'+
+    '</table></div>'+
+  '</div>';
+
+  document.getElementById("closeLB").onclick=function(){lbModal.style.display="none"};
+  document.getElementById("lbTabs").onclick=function(e){
+    var b=e.target.closest("button");
+    if(b){lbTab=+b.dataset.n;renderLBModal()}
+  };
+}
+function openLB(defaultN){
+  if(defaultN>=1&&defaultN<=6)lbTab=defaultN;
+  fetchLB(renderLBModal);
+}
+
+function openPatchNotes(){
+  var html=PATCH_NOTES.map(function(p){
+    var lis=p.items.map(function(it){return '<li>'+it+'</li>'}).join("");
+    return '<div class="pn-ver'+(p.latest?' latest':'')+'"><h4><span>'+esc(p.ver)+'</span><small style="color:var(--muted)">'+esc(p.date)+'</small></h4><ul>'+lis+'</ul></div>';
+  }).join("");
+  patchModal.style.display="flex";
+  patchModal.innerHTML='<div class="modal-box">'+
+    '<div class="modal-head"><button class="back" id="closePatch">← Retour</button><h3>Patch Notes — Survivor Squad</h3><span style="width:74px"></span></div>'+
+    html+
+  '</div>';
+  document.getElementById("closePatch").onclick=function(){patchModal.style.display="none"};
+}
+
+/* ---------- Chat & Effets visuels ---------- */
 function addChatMsg(d){
   var row=document.createElement("div");
   row.className="c-msg"+(d.sys?" sys":"");
@@ -812,7 +1060,6 @@ chatIn.addEventListener("blur",function(){
   if(!(S&&S.st==="wait"))chatBox.classList.remove("typing");
 });
 
-// Optimisation mémoire : plafonds + swap-pop sans réallocation d'arrays
 function addRing(x,y,rMax,c,lw){
   if(RINGS.length>=26)RINGS.shift();
   RINGS.push({x:x,y:y,r:6,rm:rMax,c:c,lw:lw||3,l:.38,ml:.38});
@@ -889,32 +1136,42 @@ function leaveRoom(){
   S=null;vis=[];lastHp=[];lastE=[];flashE={};
   PA=[];DEC=[];RINGS=[];FLOATS=[];GHOSTS=[];
   TR=[[],[],[],[],[],[]];
-  ovKey="";pkKey="";invKey="";room="";
+  ovKey="";pkKey="";invKey="";room="";tabHeld=false;tabModal.style.display="none";
   chatLog.innerHTML="";
   history.replaceState(null,"",location.pathname);
   lobby();
 }
 function how(){
   return '<div class="how">'+
-    '<div><b>Vague 50 (1–6 Joueurs)</b><br>Pause 4,5s entre vagues · Immunité revive 4s</div>'+
-    '<div><b>Skins & Bonus Natifs</b><br>Chaque skin apporte un passif unique</div>'+
-    '<div><b>13 Pouvoirs & Combos</b><br>Critique, Onde de choc, Ricochet & Givre</div>'+
-    '<div><b>Lien Total d’Escouade</b><br>Dégâts ×1,25 · Cad. ×1,22 · +1,2 PV/s</div>'+
+    '<div><b>Système Ranked (Vague 50)</b><br>Bats le temps attendu de ton rang pour monter</div>'+
+    '<div><b>Classes Uniques</b><br>1 classe différente par joueur dans l’escouade</div>'+
+    '<div><b>Rareté des Bonus</b><br>Commun, Rare, Épique & Légendaire</div>'+
+    '<div><b>Stats & Contrôles</b><br>Maintiens [Tab] en jeu pour le tableau complet</div>'+
   '</div>';
 }
 function lobby(msg){
-  pauseBtn.style.display="none";
+  hudBtns.style.display="none";
   invBar.style.display="none";
   chatBox.style.display="none";
   pk.style.display="none";
   var sk=SKINS[savedSkin];
-  setOv("L"+(msg||"")+"_"+room,
-    '<div class="pn"><h2>Survivor Squad</h2><p>Survivez jusqu’à la vague 50 en escouade (1 à 6 joueurs).</p>'+how()+
+  var rk=RANKS[savedRank]||RANKS[0];
+  var nextRk=RANKS[Math.min(RANKS.length-1,savedRank+1)];
+  var goalTxt=savedRank<RANKS.length-1
+    ?('Vague 50 en moins de <b>'+fmt(rk.target)+'</b> → <b>'+nextRk.name+'</b>')
+    :('Temps élite : moins de <b>'+fmt(rk.target)+'</b>');
+
+  setOv("L"+(msg||"")+"_"+room+"_"+savedRank,
+    '<div class="pn"><h2>Survivor Squad</h2>'+
+    '<div class="rank-banner"><div>Ton rang : '+rankBadge(savedRank)+'</div><div class="rank-goal">'+goalTxt+'</div></div>'+
+    how()+
     (msg?'<p style="color:#e5a93c;font-weight:700">'+msg+'</p>':'')+
     '<div class="skin-bar">'+
-      '<button type="button" id="skPrev">◀</button>'+
-      '<div class="skin-info"><img class="skin-img" id="skImg" src="'+getSkinDataUrl(savedSkin,0)+'" alt=""><div class="skin-meta"><b id="skName">'+sk.name+'</b><span id="skBonus">'+sk.bonus+'</span></div></div>'+
-      '<button type="button" id="skNext">▶</button>'+
+      '<img class="skin-img" id="skImg" src="'+getSkinDataUrl(savedSkin,0)+'" alt="">'+
+      '<div class="skin-ctrl">'+
+        buildSkinSelectHtml("skSelect",savedSkin,null)+
+        '<span id="skBonus">'+sk.bonus+'</span>'+
+      '</div>'+
     '</div>'+
     '<div class="row">'+
       '<input id="nick" maxlength="14" placeholder="TON PSEUDO" value="'+esc(savedNick)+'">'+
@@ -922,25 +1179,26 @@ function lobby(msg){
     '</div>'+
     '<div class="row">'+
       (room?'<button type="button" class="back" id="clrRoom">← Effacer code</button>':'')+
-      '<button type="button" id="btnGuide">Guide des Combos</button>'+
+      '<button type="button" id="btnLB">Classement</button>'+
+      '<button type="button" id="btnGuide">Combos</button>'+
+      '<button type="button" id="btnPatch">Patch Notes</button>'+
       '<button type="button" class="main" id="go">Entrer</button>'+
     '</div>'+
     '<p>Laisse le code vide pour créer une nouvelle salle.</p></div>',
     function(){
       var go=document.getElementById("go");
       var skImg=document.getElementById("skImg");
-      var skNm=document.getElementById("skName");
+      var skSel=document.getElementById("skSelect");
       var skBn=document.getElementById("skBonus");
-      function updSkin(delta){
-        savedSkin=(savedSkin+delta+SKINS.length)%SKINS.length;
+      skSel.onchange=function(){
+        savedSkin=parseInt(skSel.value,10)||0;
         try{localStorage.setItem("survivor-skin",String(savedSkin))}catch(e){}
-        skNm.textContent=SKINS[savedSkin].name;
         skBn.textContent=SKINS[savedSkin].bonus;
         skImg.src=getSkinDataUrl(savedSkin,0);
-      }
-      document.getElementById("skPrev").onclick=function(){updSkin(-1)};
-      document.getElementById("skNext").onclick=function(){updSkin(1)};
+      };
+      document.getElementById("btnLB").onclick=function(){openLB(1)};
       document.getElementById("btnGuide").onclick=openGuide;
+      document.getElementById("btnPatch").onclick=openPatchNotes;
       var clr=document.getElementById("clrRoom");
       if(clr)clr.onclick=function(){
         room="";history.replaceState(null,"",location.pathname);ovKey="";lobby();
@@ -958,7 +1216,7 @@ function lobby(msg){
 }
 function connect(){
   ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host);
-  ws.onopen=function(){send({t:"join",room:room,name:savedNick,skin:savedSkin});history.replaceState(null,"","?room="+room)};
+  ws.onopen=function(){send({t:"join",room:room,name:savedNick,skin:savedSkin,rank:savedRank});history.replaceState(null,"","?room="+room)};
   ws.onmessage=function(e){
     var d=JSON.parse(e.data);
     if(d.t==="full"){
@@ -971,7 +1229,7 @@ function connect(){
   ws.onclose=function(){if(ws&&S){S=null;ovKey="";lobby("Connexion interrompue.")}};
 }
 
-function buildStatsTable(d){
+function buildStatsTable(d,liveMode){
   var rows=d.stats||[];
   if(!rows.length)return "";
   var maxK=Math.max.apply(null,rows.map(function(r){return r.kills}));
@@ -983,6 +1241,7 @@ function buildStatsTable(d){
     var isMe=r.i===d.me;
     var nm=esc(r.name||("J"+(r.i+1)));
     var label=isMe?(nm+" (TOI)"):nm;
+    var sk=SKINS[r.skin||0];
     var tags=[];
     (r.sup||[]).forEach(function(s){
       var sd=SUPER_DEFS[s.id];
@@ -993,22 +1252,42 @@ function buildStatsTable(d){
       if(cd)tags.push('<span class="b-tag c">★ '+cd.name+' N.'+c.lvl+'</span>');
     });
     var buildStr=tags.length?tags.join(" "):'<span style="color:var(--muted)">—</span>';
+    var pState="";
+    if(liveMode&&d.p&&d.p[r.i]){
+      var pArr=d.p[r.i];
+      pState=pArr[4]?'<span style="color:#d94e4e;font-weight:800">À terre</span>':('<span style="color:#59b878;font-weight:700">'+Math.ceil(pArr[2])+'/'+pArr[3]+' PV</span>');
+    }
 
     return '<tr class="'+(isMe?'me-row':'')+'">'+
-      '<td><img class="p-ava" src="'+getSkinDataUrl(r.skin||0,r.i)+'" alt=""><b>'+label+'</b></td>'+
+      '<td><img class="p-ava" src="'+getSkinDataUrl(r.skin||0,r.i)+'" alt=""><b>'+label+'</b> <small style="color:var(--muted)">('+sk.name+')</small></td>'+
+      '<td>'+rankBadge(r.rank||0)+'</td>'+
+      (liveMode?'<td>'+pState+'</td>':'')+
       '<td class="'+(r.kills>0&&r.kills===maxK?'top':'')+'">'+fmtNum(r.kills)+'</td>'+
       '<td class="'+(r.dmg>0&&r.dmg===maxD?'top':'')+'">'+fmtNum(r.dmg)+'</td>'+
       '<td>'+fmtNum(r.taken)+'</td>'+
       '<td class="'+(r.rev>0&&r.rev===maxR?'top':'')+'">'+fmtNum(r.rev)+'</td>'+
       '<td class="'+(r.gems>0&&r.gems===maxG?'top':'')+'">'+fmtNum(r.gems)+'</td>'+
-      '<td style="white-space:normal;min-width:130px">'+buildStr+'</td>'+
+      '<td style="white-space:normal;min-width:120px">'+buildStr+'</td>'+
     '</tr>';
   }).join("");
 
   return '<div class="tbl-wrap"><table class="stbl">'+
-    '<thead><tr><th>Joueur</th><th>Éliminés</th><th>Dégâts</th><th>Subis</th><th>Réanim.</th><th>Gemmes</th><th>Combos actifs</th></tr></thead>'+
+    '<thead><tr><th>Joueur</th><th>Rang</th>'+(liveMode?'<th>État</th>':'')+'<th>Kills</th><th>Dégâts</th><th>Subis</th><th>Réanim.</th><th>Gemmes</th><th>Combos actifs</th></tr></thead>'+
     '<tbody>'+body+'</tbody>'+
   '</table></div>';
+}
+
+function updateTabModal(){
+  if(!tabHeld||!S||S.st!=="play"){
+    tabModal.style.display="none";
+    return;
+  }
+  var myRk=RANKS[S.myRank||savedRank]||RANKS[0];
+  tabModal.style.display="flex";
+  tabModal.innerHTML='<div class="tab-box">'+
+    '<div class="modal-head"><h3>Tableau de l’Escouade — Vague '+S.wv+'/50</h3><span style="font-size:.74rem;color:var(--muted)">Temps : <b style="color:var(--gold)">'+fmtPrecise(S.tm)+'</b> · Cible '+myRk.name+' : <b>&lt; '+fmt(myRk.target)+'</b></span></div>'+
+    buildStatsTable(S,true)+
+  '</div>';
 }
 
 function renderInventory(d){
@@ -1046,6 +1325,8 @@ function renderInventory(d){
 }
 
 function onState(d){
+  if(d.lb)cachedLB=d.lb;
+
   d.ev.forEach(function(v){
     if(v[2]===5&&v.length>=6){
       var cdef=COMBO_DEFS[v[4]];
@@ -1127,54 +1408,73 @@ function onState(d){
   }
   S=d;
   var playing=d.st==="play";
-  pauseBtn.style.display=playing?"block":"none";
+  hudBtns.style.display=playing?"flex":"none";
   invBar.style.display=playing?"flex":"none";
   chatBox.style.display="flex";
   if(d.st==="wait")chatBox.classList.add("inLobby");
   else chatBox.classList.remove("inLobby");
-  if(playing)renderInventory(d);
+  if(playing){
+    renderInventory(d);
+    if(tabHeld)updateTabModal();
+  }else if(tabHeld){
+    tabHeld=false;
+    tabModal.style.display="none";
+  }
 
   if(d.st==="wait"){
     var mySkin=(d.skins&&d.skins[d.me]!==undefined)?d.skins[d.me]:savedSkin;
+    if(mySkin!==savedSkin){
+      savedSkin=mySkin;
+      try{localStorage.setItem("survivor-skin",String(savedSkin))}catch(e){}
+    }
     var skObj=SKINS[mySkin]||SKINS[0];
+    var takenMap={};
+    for(var ti=0;ti<d.n;ti++){
+      if(ti!==d.me&&d.skins&&d.skins[ti]!==undefined){
+        takenMap[d.skins[ti]]=pName(ti);
+      }
+    }
     var slotsHtml="";
     for(var si=0;si<6;si++){
       var active=si<d.n;
       if(active){
         var sIdx=(d.skins&&d.skins[si])||0;
-        slotsHtml+='<div class="slot on" style="background:'+CO[si]+'"><img src="'+getSkinDataUrl(sIdx,si)+'" alt=""><div class="slot-txt">'+esc(pName(si))+'<small>'+SKINS[sIdx].name+'</small></div></div>';
+        var rIdx=(d.ranks&&d.ranks[si])||0;
+        slotsHtml+='<div class="slot on" style="background:'+CO[si]+'"><img src="'+getSkinDataUrl(sIdx,si)+'" alt=""><div class="slot-txt">'+esc(pName(si))+'<small>'+SKINS[sIdx].name+' · '+RANKS[rIdx].name+'</small></div></div>';
       }else{
         slotsHtml+='<div class="slot"><div class="slot-txt">Emplacement J'+(si+1)+'</div></div>';
       }
     }
-    setOv("w_"+d.n+"_"+(d.names||[]).join(",")+"_"+(d.skins||[]).join(","),
+    setOv("w_"+d.n+"_"+(d.names||[]).join(",")+"_"+(d.skins||[]).join(",")+"_"+(d.ranks||[]).join(","),
       '<div class="pn"><h2>Salle '+d.code+' ('+d.n+'/6)</h2>'+
       '<div class="slots">'+slotsHtml+'</div>'+
       '<div class="skin-bar">'+
-        '<button type="button" id="wSkPrev">◀</button>'+
-        '<div class="skin-info"><img class="skin-img" src="'+getSkinDataUrl(mySkin,d.me)+'" alt=""><div class="skin-meta"><b>'+skObj.name+'</b><span>'+skObj.bonus+'</span></div></div>'+
-        '<button type="button" id="wSkNext">▶</button>'+
+        '<img class="skin-img" src="'+getSkinDataUrl(mySkin,d.me)+'" alt="">'+
+        '<div class="skin-ctrl">'+
+          buildSkinSelectHtml("wSkSelect",mySkin,takenMap)+
+          '<span>'+skObj.bonus+'</span>'+
+        '</div>'+
       '</div>'+
-      '<p>Partage ce lien pour jouer jusqu’à 6 en coopération.</p>'+
+      '<p>Classes uniques · Partage ce lien pour jouer jusqu’à 6 en coopération.</p>'+
       '<div class="row"><input id="lk" readonly value="'+location.origin+'/?room='+d.code+'"><button id="cp">Copier</button></div>'+
       '<div class="row">'+
         '<button class="back" id="wBack">← Retour</button>'+
-        '<button id="wGuide">Guide des Combos</button>'+
+        '<button id="wLB">Classement</button>'+
+        '<button id="wGuide">Combos</button>'+
+        '<button id="wPatch">Patch Notes</button>'+
         '<button class="main" id="st">Lancer la partie</button>'+
       '</div></div>',
       function(){
-        document.getElementById("wSkPrev").onclick=function(){
-          var ns=(mySkin-1+SKINS.length)%SKINS.length;
-          savedSkin=ns;try{localStorage.setItem("survivor-skin",String(ns))}catch(e){}
-          send({t:"skin",skin:ns});
-        };
-        document.getElementById("wSkNext").onclick=function(){
-          var ns=(mySkin+1)%SKINS.length;
+        var wSel=document.getElementById("wSkSelect");
+        wSel.onchange=function(){
+          var ns=parseInt(wSel.value,10)||0;
           savedSkin=ns;try{localStorage.setItem("survivor-skin",String(ns))}catch(e){}
           send({t:"skin",skin:ns});
         };
         document.getElementById("wBack").onclick=leaveRoom;
+        document.getElementById("wLB").onclick=function(){openLB(d.n)};
         document.getElementById("wGuide").onclick=openGuide;
+        document.getElementById("wPatch").onclick=openPatchNotes;
         document.getElementById("cp").onclick=function(){
           var i=document.getElementById("lk");i.select();
           if(navigator.clipboard)navigator.clipboard.writeText(i.value);
@@ -1184,14 +1484,30 @@ function onState(d){
       }
     );
   }else if(d.st==="win"){
-    setOv("win_"+d.k,
+    var myStat=(d.stats||[]).find(function(x){return x.i===d.me});
+    if(myStat&&myStat.rank!==undefined){
+      savedRank=myStat.rank;
+      try{localStorage.setItem("survivor-rank",String(savedRank))}catch(e){}
+    }
+    var promoHtml="";
+    if(myStat){
+      if(myStat.promoted){
+        promoHtml='<div class="promo-box">PROMOTION RANKED : '+RANKS[myStat.oldRank].name.toUpperCase()+' → '+RANKS[myStat.rank].name.toUpperCase()+' ! (Temps : '+fmtPrecise(d.tm)+' / Cible : '+fmt(RANKS[myStat.oldRank].target)+')</div>';
+      }else if(myStat.rank===RANKS.length-1){
+        promoHtml='<div class="promo-box">RANG LÉGENDE MAINTENU — Temps : '+fmtPrecise(d.tm)+'</div>';
+      }else{
+        promoHtml='<div class="promo-box miss">Rang actuel : <b>'+RANKS[myStat.rank].name+'</b> — Temps réalisé : <b>'+fmtPrecise(d.tm)+'</b> (Objectif promotion : <b>&lt; '+fmt(RANKS[myStat.rank].target)+'</b>)</div>';
+      }
+    }
+    setOv("win_"+d.k+"_"+savedRank,
       '<div class="pn wide"><h2 style="color:#59b878">Victoire — Vague 50 !</h2>'+
-      '<p class="rec">L’escouade a survécu aux 50 vagues et vaincu les 5 boss !</p>'+
-      '<div class="stats"><div><b>50 / 50</b><small>VAGUES</small></div><div><b>'+fmt(d.tm)+'</b><small>TEMPS TOTAL</small></div><div><b>Niv. '+d.l+'</b><small>ESCOUADE</small></div><div><b>'+fmtNum(d.k)+'</b><small>ÉLIMINÉS</small></div></div>'+
-      buildStatsTable(d)+
-      '<div class="row"><button class="back" id="winHome">← Accueil</button><button class="main" id="rs">Rejouer [Entrée]</button></div></div>',
+      promoHtml+
+      '<div class="stats"><div><b>50 / 50</b><small>VAGUES</small></div><div><b>'+fmtPrecise(d.tm)+'</b><small>TEMPS FINAL</small></div><div><b>Niv. '+d.l+'</b><small>ESCOUADE</small></div><div><b>'+fmtNum(d.k)+'</b><small>ÉLIMINÉS</small></div></div>'+
+      buildStatsTable(d,false)+
+      '<div class="row"><button class="back" id="winHome">← Accueil</button><button id="winLB">Classement '+d.n+'J</button><button class="main" id="rs">Rejouer [Entrée]</button></div></div>',
       function(){
         document.getElementById("winHome").onclick=leaveRoom;
+        document.getElementById("winLB").onclick=function(){openLB(d.n)};
         document.getElementById("rs").onclick=function(){send({t:"restart"})};
       }
     );
@@ -1200,12 +1516,13 @@ function onState(d){
     if(rec){best=d.tm;try{localStorage.setItem("survivor-best",String(Math.floor(d.tm)))}catch(e){}}
     setOv("o_"+d.k+"_"+d.wv,
       '<div class="pn wide"><h2>Défaite</h2>'+
-      (rec?'<p class="rec">Nouveau record de survie</p>':'<p>Record : '+fmt(best)+'</p>')+
+      (rec?'<p class="rec">Nouveau record de survie</p>':'<p>Record : '+fmt(best)+' · Termine la vague 50 pour monter en Ranked</p>')+
       '<div class="stats"><div><b>Vague '+d.wv+'/50</b><small>ATTEINTE</small></div><div><b>'+fmt(d.tm)+'</b><small>SURVIE</small></div><div><b>Niv. '+d.l+'</b><small>ESCOUADE</small></div><div><b>'+fmtNum(d.k)+'</b><small>ÉLIMINÉS</small></div></div>'+
-      buildStatsTable(d)+
-      '<div class="row"><button class="back" id="overHome">← Accueil</button><button class="main" id="rs">Rejouer [Entrée]</button></div></div>',
+      buildStatsTable(d,false)+
+      '<div class="row"><button class="back" id="overHome">← Accueil</button><button id="overLB">Classement</button><button class="main" id="rs">Rejouer [Entrée]</button></div></div>',
       function(){
         document.getElementById("overHome").onclick=leaveRoom;
+        document.getElementById("overLB").onclick=function(){openLB(d.n)};
         document.getElementById("rs").onclick=function(){send({t:"restart"})};
       }
     );
@@ -1215,7 +1532,7 @@ function onState(d){
       '<div class="pn"><h2>Jeu en pause</h2>'+
       '<p>Partie mise en pause par '+by+'.</p>'+
       '<div class="stats"><div><b>Vague '+d.wv+'/50</b><small>EN COURS</small></div><div><b>Niv. '+d.l+'</b><small>ESCOUADE</small></div><div><b>'+fmt(d.tm)+'</b><small>TEMPS</small></div></div>'+
-      '<div class="row"><button class="back" id="pzLeave">← Quitter</button><button id="pGuide">Guide des Combos</button><button class="main" id="resume">Reprendre [P]</button></div></div>',
+      '<div class="row"><button class="back" id="pzLeave">← Quitter</button><button id="pGuide">Combos</button><button class="main" id="resume">Reprendre [P]</button></div></div>',
       function(){
         document.getElementById("pzLeave").onclick=leaveRoom;
         document.getElementById("pGuide").onclick=openGuide;
@@ -1232,7 +1549,8 @@ function onState(d){
     if(d.ch&&d.ch.length){
       pk.style.display="flex";
       pk.innerHTML=d.ch.map(function(u,i){
-        var uIdx=u[0],uTitle=u[1],uDesc=u[2],hint=u[3];
+        var uIdx=u[0],uTitle=u[1],uDesc=u[2],hint=u[3],rarIdx=u[4]||0;
+        var rarObj=RARITIES[rarIdx]||RARITIES[0];
         var cTag="";
         if(hint){
           var txt=typeof hint==="string"?hint:(hint.txt||"");
@@ -1241,7 +1559,8 @@ function onState(d){
           var prefix=hType==="fuse"||hType==="sup"?"✦ ":(hType==="full"?"":"★ ");
           cTag='<div class="cmbTag '+cls+'">'+prefix+esc(txt)+'</div>';
         }
-        return '<button data-i="'+i+'"><i>'+keyBadges[i]+'</i>'+
+        return '<button data-i="'+i+'" style="--rar-col:'+rarObj.col+'"><i>'+keyBadges[i]+'</i>'+
+          '<span class="rar-pill">'+rarObj.name+'</span>'+
           '<div class="pk-top"><img class="pk-ico" src="'+UP_IMGS[uIdx]+'" alt=""><b>'+esc(uTitle)+'</b></div>'+
           '<small>'+esc(uDesc)+'</small>'+cTag+'</button>';
       }).join("")+(me&&me[7]>1?'<span>+'+(me[7]-1)+'</span>':'');
@@ -1253,12 +1572,27 @@ function onState(d){
 }
 pk.onclick=function(e){var b=e.target.closest("button");if(b)send({t:"pick",i:+b.dataset.i})};
 pauseBtn.onclick=function(){send({t:"pause"})};
+tabBtn.onclick=function(){
+  if(!S||S.st!=="play")return;
+  tabHeld=!tabHeld;
+  updateTabModal();
+};
 
 /* ---------- Saisie (AZERTY & QWERTY) ---------- */
 var pickMap={"Digit1":0,"Numpad1":0,"1":0,"&":0,"Digit2":1,"Numpad2":1,"2":1,"é":1,"Digit3":2,"Numpad3":2,"3":2,'"':2};
 document.addEventListener("keydown",function(e){
-  if(e.target.tagName==="INPUT")return;
-  if(e.key==="Escape"&&guideModal.style.display==="flex"){guideModal.style.display="none";return}
+  if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT")return;
+  if(e.key==="Tab"){
+    e.preventDefault();
+    if(S&&S.st==="play"&&!tabHeld){tabHeld=true;updateTabModal()}
+    return;
+  }
+  if(e.key==="Escape"){
+    if(guideModal.style.display==="flex"){guideModal.style.display="none";return}
+    if(lbModal.style.display==="flex"){lbModal.style.display="none";return}
+    if(patchModal.style.display==="flex"){patchModal.style.display="none";return}
+    if(tabHeld){tabHeld=false;tabModal.style.display="none";return}
+  }
   if(S&&(e.key==="Enter"||e.key==="t"||e.key==="T")){
     if(S.st==="over"||S.st==="win"){
       if(e.key==="Enter")send({t:"restart"});
@@ -1274,7 +1608,14 @@ document.addEventListener("keydown",function(e){
   if(S&&S.ch&&slot!==undefined)send({t:"pick",i:slot});
   if(e.key===" "||e.key==="Shift")send({t:"dash"});
 });
-document.addEventListener("keyup",function(e){keys[e.key]=0});
+document.addEventListener("keyup",function(e){
+  if(e.key==="Tab"){
+    e.preventDefault();
+    if(tabHeld){tabHeld=false;tabModal.style.display="none"}
+    return;
+  }
+  keys[e.key]=0;
+});
 function pos(e){var r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
 var lt=0;
 cv.addEventListener("pointerdown",function(e){ptr=pos(e);var n=Date.now();if(n-lt<280)send({t:"dash"});lt=n});
@@ -1422,7 +1763,6 @@ function drawPlayer(p,i,v,aimAngle){
     return;
   }
 
-  // Aura de givre si active
   if(frostR>0){
     ctx.fillStyle="rgba(124,232,255,.06)";
     ctx.beginPath();ctx.arc(v.x,v.y,frostR,0,TAU);ctx.fill();
@@ -1431,7 +1771,6 @@ function drawPlayer(p,i,v,aimAngle){
     ctx.beginPath();ctx.arc(v.x,v.y,frostR,0,TAU);ctx.stroke();
   }
 
-  // Bouclier d'immunité (revive / invulnérabilité)
   if(p[6]){
     ctx.strokeStyle="rgba(126,224,155,.65)";
     ctx.lineWidth=2.5;
@@ -1651,15 +1990,16 @@ function draw(){
     });
 
     ctx.fillStyle="#e5a93c";ctx.font="bold 22px "+SERIF;ctx.textAlign="center";
-    ctx.fillText("VAGUE "+S.wv+" / "+(S.mw||50),W/2,32);
-    ctx.fillStyle="#cbbba6";ctx.font="bold 11.5px "+FONT;
+    ctx.fillText("VAGUE "+S.wv+" / "+(S.mw||50),W/2,31);
+    ctx.fillStyle="#cbbba6";ctx.font="bold 11px "+FONT;
+    var myKills=me?(me[19]||0):0;
     var sub=S.rem>0
-      ?("Restants : "+S.rem+"  |  Niv. "+S.l)
-      :(S.wd>0?("Prochaine vague dans "+S.wd.toFixed(1)+"s  |  Niv. "+S.l):("Vague nettoyée  |  Niv. "+S.l));
-    ctx.fillText(sub,W/2,49);
+      ?("Restants : "+S.rem+"  ·  Niv. "+S.l+"  ·  Kills : "+S.k+" (Toi : "+myKills+")")
+      :(S.wd>0?("Prochaine vague dans "+S.wd.toFixed(1)+"s  ·  Kills : "+S.k):("Vague nettoyée  ·  Kills : "+S.k));
+    ctx.fillText(sub,W/2,47);
 
     if(S.bn){
-      var bw=340,bx=(W-bw)/2,by=64;
+      var bw=340,bx=(W-bw)/2,by=62;
       rr(bx,by,bw,16,4);ctx.fillStyle="#161310";ctx.fill();
       if(S.bh>0){
         rr(bx+2,by+2,Math.max(4,(bw-4)*S.bh/100),12,2);
@@ -1669,15 +2009,18 @@ function draw(){
       ctx.fillStyle="#f0e6d6";ctx.font="bold 9.5px "+FONT;ctx.textAlign="center";
       ctx.fillText(S.bn.toUpperCase()+" — "+S.bh+"%",W/2,by+12);
     }else if(S.flk){
-      ctx.textAlign="center";ctx.font="bold 11.5px "+FONT;
-      ctx.fillStyle="#ffd166";ctx.fillText("✦ LIEN TOTAL ACTIF (DÉGÂTS ×1,25 · CAD. ×1,22 · +1,2 PV/S) ✦",W/2,66);
+      ctx.textAlign="center";ctx.font="bold 11px "+FONT;
+      ctx.fillStyle="#ffd166";ctx.fillText("✦ LIEN TOTAL ACTIF (DÉGÂTS ×1,25 · CAD. ×1,22 · +1,2 PV/S) ✦",W/2,64);
     }else if(me&&me[15]){
-      ctx.textAlign="center";ctx.font="bold 11.5px "+FONT;
-      ctx.fillStyle="#e5a93c";ctx.fillText("LIEN DE GARDE ACTIF",W/2,66);
+      ctx.textAlign="center";ctx.font="bold 11px "+FONT;
+      ctx.fillStyle="#e5a93c";ctx.fillText("LIEN DE GARDE ACTIF",W/2,64);
     }
 
-    ctx.textAlign="right";ctx.fillStyle="rgba(240,230,214,.4)";ctx.font="10.5px "+FONT;
-    ctx.fillText("SALLE "+S.code+" · "+fmt(S.tm),W-14,H-42);
+    var myRk=RANKS[S.myRank||savedRank]||RANKS[0];
+    var onTime=S.tm<=myRk.target;
+    ctx.textAlign="right";ctx.font="bold 10.5px "+FONT;
+    ctx.fillStyle=onTime?"rgba(240,230,214,.62)":"rgba(224,86,86,.75)";
+    ctx.fillText("SALLE "+S.code+" · "+fmt(S.tm)+" / "+fmt(myRk.target)+" ("+myRk.name+")",W-14,H-44);
 
     if(S.pz&&!S.mpz){
       ctx.fillStyle="rgba(10,8,6,.74)";
@@ -1693,7 +2036,6 @@ function draw(){
   }
 }
 
-// Swap-pop in-place (zéro allocation par frame)
 function tickList(arr,dt,upd){
   var i=0;
   while(i<arr.length){
