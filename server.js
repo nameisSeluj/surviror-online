@@ -16,19 +16,42 @@ const UPS=[
  ["Soin & armure","+25 PV max et soin complet",p=>{p.max+=25;p.hp=p.max}]
 ];
 
+const COMBOS=[
+ {id:0,req:[0,1],name:"Mitrailleuse lourde",apply:p=>{p.S.dmg*=1.35;p.S.rate*=1.35}},
+ {id:1,req:[2,3],name:"Pluie d'acier",apply:p=>{p.S.multi+=2}},
+ {id:2,req:[7,4],name:"Tempête de lames",apply:p=>{p.S.orb+=2;p.S.orbSpd=2}},
+ {id:3,req:[6,8],name:"Forteresse vivante",apply:p=>{p.max+=30;p.hp=p.max;p.S.regen*=2}},
+ {id:4,req:[5,7],name:"Vortex magnétique",apply:p=>{p.S.magnet*=2;p.S.gemHeal=1}}
+];
+
 const BOSS_NAMES=["Colosse","Traqueur","Arpenteur","Matriarche","Seigneur d'Encre"];
+const SPAWNS=[[-48,-32],[48,-32],[-48,32],[48,32]];
 
 const rnd=(a,b)=>a+Math.random()*(b-a),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-const mkP=(ws,i)=>({ws,i,x:W/2+(i?50:-50),y:H/2,r:11,hp:100,max:100,down:0,rev:0,inv:0,dx:0,dy:0,cd:0,dc:0,dsh:0,pend:0,ch:null,S:{dmg:1,rate:1,multi:1,pierce:0,speed:1,magnet:1,regen:0,orb:0}});
+const mkP=(ws,i)=>{
+ const sp=SPAWNS[i%4];
+ return {ws,i,x:W/2+sp[0],y:H/2+sp[1],r:11,hp:100,max:100,down:0,rev:0,inv:0,dx:0,dy:0,cd:0,dc:0,dsh:0,pend:0,ch:null,sc:0,linked:0,
+  invList:Array(UPS.length).fill(0),combos:[],
+  S:{dmg:1,rate:1,multi:1,pierce:0,speed:1,magnet:1,regen:0,orb:0,orbSpd:1,gemHeal:0}};
+};
 
 function reset(r){
- Object.assign(r,{E:[],B:[],G:[],X:[],ev:[],t:0,kills:0,xp:0,lvl:1,need:4,link:0,wave:0,toSpawn:0,spawnCd:0,waveDelay:0.5,paused:false,pausedBy:-1});
+ Object.assign(r,{E:[],B:[],G:[],X:[],ev:[],links:[],t:0,kills:0,xp:0,lvl:1,need:4,wave:0,toSpawn:0,spawnCd:0,waveDelay:0.5,paused:false,pausedBy:-1});
  r.pl.forEach((p,i)=>Object.assign(p,mkP(p.ws,i)));
 }
 const offer=p=>{p.ch=UPS.map((u,i)=>i).sort(()=>Math.random()-.5).slice(0,3)};
 
+function comboHint(p,uIdx){
+ for(const c of COMBOS){
+  if(p.combos.includes(c.id))continue;
+  if(c.req[0]===uIdx&&p.invList[c.req[1]]>0)return c.name;
+  if(c.req[1]===uIdx&&p.invList[c.req[0]]>0)return c.name;
+ }
+ return "";
+}
+
 function spawnBoss(r){
- const w=r.wave,n=r.pl.length>1?1.45:1;
+ const w=r.wave,n=1+(r.pl.length-1)*0.4;
  const bType=Math.floor((w/5-1)%5);
  const tier=w>25?1.65:1;
  const a=Math.random()*4,m=32;
@@ -47,7 +70,7 @@ function spawnBoss(r){
 }
 
 function spawnE(r){
- const a=Math.random()*4,m=28,w=r.wave,q=Math.random(),n=r.pl.length>1?1.35:1;let x,y,e;
+ const a=Math.random()*4,m=28,w=r.wave,q=Math.random(),n=1+(r.pl.length-1)*0.32;let x,y,e;
  if(a<1){x=rnd(0,W);y=-m}else if(a<2){x=W+m;y=rnd(0,H)}else if(a<3){x=rnd(0,W);y=H+m}else{x=-m;y=rnd(0,H)}
  if(w>=5&&q<.12)e={k:2,r:17,hp:(8+w*1.1)*n,sp:40,xp:3,d:16};
  else if(w>=4&&q<.28)e={k:3,r:10,hp:(2.5+w*.4)*n,sp:52,xp:2,d:7};
@@ -58,24 +81,41 @@ function spawnE(r){
 
 function tick(r){
  if(r.st!=="play")return;
- // Pause manuelle ou pause de choix de niveau
  if(r.paused||r.pl.some(p=>p.ch!==null))return;
 
  r.t+=DT;
  const pl=r.pl,al=pl.filter(p=>!p.down);
- r.link=al.length>1&&dist(al[0],al[1])<180?1:0;
+
+ // Calcul des liens de garde entre joueurs proches (jusqu'à 4 joueurs)
+ r.links=[];
+ for(const p of pl)p.linked=0;
+ for(let i=0;i<al.length;i++){
+  for(let j=i+1;j<al.length;j++){
+   if(dist(al[i],al[j])<185){
+    al[i].linked=1;al[j].linked=1;
+    r.links.push([al[i].i,al[j].i]);
+   }
+  }
+ }
 
  for(const p of al){
   const l=Math.hypot(p.dx,p.dy),k=l>1?1/l:1,sp=175*p.S.speed*(p.dsh>0?3.2:1);
   p.x=Math.max(p.r,Math.min(W-p.r,p.x+p.dx*k*sp*DT));
   p.y=Math.max(p.r,Math.min(H-p.r,p.y+p.dy*k*sp*DT));
-  p.inv-=DT;p.dsh-=DT;p.dc-=DT;p.hp=Math.min(p.max,p.hp+(p.S.regen+r.link*.8)*DT);p.cd-=DT;
+  p.inv-=DT;p.dsh-=DT;p.dc-=DT;
+  p.hp=Math.min(p.max,p.hp+(p.S.regen+p.linked*.8)*DT);
+  p.cd-=DT;
   if(p.cd<=0&&r.E.length){
    let n=null,nd=1e9;
    for(const e of r.E){const d=(e.x-p.x)**2+(e.y-p.y)**2;if(d<nd){nd=d;n=e}}
-   const an=Math.atan2(n.y-p.y,n.x-p.x),dm=p.S.dmg*(r.link?1.25:1);
-   for(let i=0;i<p.S.multi;i++){const a=an+(i-(p.S.multi-1)/2)*.2;r.B.push({x:p.x,y:p.y,vx:Math.cos(a)*450,vy:Math.sin(a)*450,l:1.1,p:p.S.pierce,h:[],o:p.i,d:dm})}
-   p.cd=.52/(p.S.rate*(r.link?1.3:1));
+   const an=Math.atan2(n.y-p.y,n.x-p.x),dm=p.S.dmg*(p.linked?1.25:1);
+   const hasHeavy=p.combos.includes(0);
+   for(let i=0;i<p.S.multi;i++){
+    const a=an+(i-(p.S.multi-1)/2)*.18;
+    r.B.push({x:p.x,y:p.y,vx:Math.cos(a)*460,vy:Math.sin(a)*460,l:1.1,p:p.S.pierce,h:[],o:p.i,d:dm,hv:hasHeavy?1:0});
+   }
+   p.sc=(p.sc+1)%256;
+   p.cd=.52/(p.S.rate*(p.linked?1.3:1));
   }
  }
 
@@ -124,7 +164,7 @@ function tick(r){
    }else if(e.bk===3){
     e.x+=(t.x-e.x)/d*e.sp*DT;e.y+=(t.y-e.y)/d*e.sp*DT;
     e.sp2-=DT;
-    if(e.sp2<=0&&r.E.length<28){
+    if(e.sp2<=0&&r.E.length<32){
      e.sp2=4.2;
      for(let i=0;i<3;i++){
       const sa=i*2.09+r.t;
@@ -140,7 +180,7 @@ function tick(r){
      for(let i=0;i<12;i++){const a=i*.523+r.t*1.5;r.X.push({x:e.x,y:e.y,vx:Math.cos(a)*155,vy:Math.sin(a)*155,l:4})}
     }
     e.sp2-=DT;
-    if(e.sp2<=0&&r.E.length<25){
+    if(e.sp2<=0&&r.E.length<28){
      e.sp2=5.5;
      const m={k:0,r:11,hp:2+r.wave*.25,sp:65,xp:1,d:8,x:e.x,y:e.y,bc:0};m.mh=m.hp;r.E.push(m);
     }
@@ -169,7 +209,7 @@ function tick(r){
  });
 
  for(const d of pl)if(d.down){
-  const a=al.find(p=>!p.down&&dist(p,d)<60);
+  const a=al.find(p=>!p.down&&dist(p,d)<62);
   d.rev=a?d.rev+DT:Math.max(0,d.rev-DT*.5);
   if(d.rev>=2.2){d.down=0;d.hp=d.max*.6;d.inv=2.5;d.rev=0}
  }
@@ -180,14 +220,14 @@ function tick(r){
   if(r.spawnCd<=0){
    spawnE(r);
    r.toSpawn--;
-   r.spawnCd=Math.max(0.22,0.65-r.wave*0.02);
+   r.spawnCd=Math.max(0.20,0.65-r.wave*0.02);
   }
  }else if(r.E.length===0){
   r.waveDelay-=DT;
   if(r.waveDelay<=0){
    r.wave++;
    r.waveDelay=2.4;
-   const mult=pl.length>1?1.35:1;
+   const mult=1+(pl.length-1)*0.32;
    if(r.wave%5===0){
     spawnBoss(r);
     r.toSpawn=Math.round((4+r.wave*.8)*mult);
@@ -200,7 +240,7 @@ function tick(r){
 
  const live=pl.filter(p=>!p.down);
  for(const p of live)if(p.S.orb)for(let k=0;k<p.S.orb;k++){
-  const a=r.t*3+k*6.283/p.S.orb,bx=p.x+Math.cos(a)*46,by=p.y+Math.sin(a)*46;
+  const a=r.t*3*p.S.orbSpd+k*6.283/p.S.orb,bx=p.x+Math.cos(a)*46,by=p.y+Math.sin(a)*46;
   for(const e of r.E)if(!(e.bc>0)&&Math.hypot(e.x-bx,e.y-by)<e.r+7){e.hp-=1.3*p.S.dmg;e.bc=.28}
  }
  for(const e of r.E)e.bc-=DT;
@@ -216,10 +256,11 @@ function tick(r){
   let n=null,nd=1e9;
   for(const p of live){const d=dist(g,p);if(d<nd){nd=d;n=p}}
   if(!n)return true;
-  const pull=r.E.length===0&&r.toSpawn===0?180:85*n.S.magnet;
+  const pull=r.E.length===0&&r.toSpawn===0?190:85*n.S.magnet;
   if(nd<pull){const d=nd||1;g.x+=(n.x-g.x)/d*340*DT;g.y+=(n.y-g.y)/d*340*DT}
   if(nd<n.r+6){
    r.xp+=g.v;
+   if(n.S.gemHeal)n.hp=Math.min(n.max,n.hp+n.S.gemHeal);
    while(r.xp>=r.need){
     r.xp-=r.need;r.lvl++;r.need=4+r.lvl*3;
     for(const p of pl){p.pend++;if(p.ch===null)offer(p)}
@@ -237,13 +278,16 @@ function snap(r){
  const boss=r.E.find(e=>e.k===4);
  const bName=boss?BOSS_NAMES[boss.bk]:"";
  const bHp=boss?R(boss.hp/boss.mh*100):0;
- const b={t:"s",st:r.st,code:r.code,n:r.pl.length,tm:R(r.t*10)/10,k:r.kills,l:r.lvl,xp:r.xp,nd:r.need,lk:r.link,wv:r.wave,rem:r.E.length+r.toSpawn,pz:pz,mpz:r.paused?1:0,pby:r.pausedBy,bn:bName,bh:bHp,
-  p:r.pl.map(p=>[R(p.x),R(p.y),R(p.hp),p.max,p.down,R(p.rev*100)/100,p.inv>0?1:0,p.pend,R(85*p.S.magnet),R(Math.max(0,p.dc)*10)/10,p.S.orb,p.ch!==null?1:0]),
+ const b={t:"s",st:r.st,code:r.code,n:r.pl.length,tm:R(r.t*10)/10,k:r.kills,l:r.lvl,xp:r.xp,nd:r.need,lks:r.links,wv:r.wave,rem:r.E.length+r.toSpawn,pz:pz,mpz:r.paused?1:0,pby:r.pausedBy,bn:bName,bh:bHp,
+  p:r.pl.map(p=>[R(p.x),R(p.y),R(p.hp),p.max,p.down,R(p.rev*100)/100,p.inv>0?1:0,p.pend,R(85*p.S.magnet),R(Math.max(0,p.dc)*10)/10,p.S.orb,p.ch!==null?1:0,p.dsh>0?1:0,p.sc,p.S.orbSpd,p.linked]),
   E:r.E.map(e=>[R(e.x),R(e.y),e.k,R(e.hp/e.mh*100),e.bk||0]),
-  B:r.B.map(x=>[R(x.x),R(x.y),x.vx,x.vy,x.o]),
+  B:r.B.map(x=>[R(x.x),R(x.y),x.vx,x.vy,x.o,x.hv||0]),
   G:r.G.map(g=>[R(g.x),R(g.y)]),X:r.X.map(x=>[R(x.x),R(x.y)]),oa:R(r.t*300)/100,ev:r.ev};
  r.ev=[];
- for(const p of r.pl)if(p.ws.readyState===1)p.ws.send(JSON.stringify({...b,me:p.i,ch:p.ch?p.ch.map(i=>UPS[i].slice(0,2)):null}));
+ for(const p of r.pl)if(p.ws.readyState===1)p.ws.send(JSON.stringify({
+  ...b,me:p.i,inv:p.invList,cmb:p.combos,
+  ch:p.ch?p.ch.map(i=>[UPS[i][0],UPS[i][1],comboHint(p,i)]):null
+ }));
 }
 setInterval(()=>{for(const r of rooms.values()){tick(r);snap(r)}},1000/30);
 
@@ -254,15 +298,23 @@ wss.on("connection",ws=>{
    const c=String(d.room||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6)||"SALLE";
    let r=rooms.get(c);
    if(!r){r={code:c,pl:[],st:"wait"};reset(r);rooms.set(c,r)}
-   if(r.pl.length>=2)return ws.send(JSON.stringify({t:"full"}));
+   if(r.pl.length>=4)return ws.send(JSON.stringify({t:"full"}));
    const p=mkP(ws,r.pl.length);r.pl.push(p);ws.r=r;ws.p=p;
-   if(r.pl.length===2&&r.st==="wait")r.st="play";
    return;
   }
   const r=ws.r,p=ws.p;if(!r)return;
   if(d.t==="in"){p.dx=Math.max(-1,Math.min(1,+d.dx||0));p.dy=Math.max(-1,Math.min(1,+d.dy||0))}
   else if(d.t==="pick"&&p.ch&&p.ch[d.i]!=null){
-   UPS[p.ch[d.i]][2](p);
+   const uIdx=p.ch[d.i];
+   UPS[uIdx][2](p);
+   p.invList[uIdx]++;
+   for(const c of COMBOS){
+    if(!p.combos.includes(c.id)&&p.invList[c.req[0]]>0&&p.invList[c.req[1]]>0){
+     p.combos.push(c.id);
+     c.apply(p);
+     r.ev.push([Math.round(p.x),Math.round(p.y),5,p.i,c.id]);
+    }
+   }
    p.pend=Math.max(0,p.pend-1);
    p.ch=null;
    p.inv=Math.max(p.inv,.6);
@@ -283,4 +335,4 @@ wss.on("connection",ws=>{
   else if(r.paused)r.paused=false;
  });
 });
-srv.listen(PORT,"0.0.0.0",()=>console.log("Survivor Duo sur le port "+PORT));
+srv.listen(PORT,"0.0.0.0",()=>console.log("Survivor Squad (4J) sur le port "+PORT));
