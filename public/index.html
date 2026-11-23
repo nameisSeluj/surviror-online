@@ -62,7 +62,7 @@ canvas{
   z-index:10;
 }
 .pn{
-  width:min(100%,540px);
+  width:min(100%,560px);
   max-height:100%;
   overflow:auto;
   background:var(--panel);
@@ -73,7 +73,7 @@ canvas{
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:clamp(7px,1.4vw,11px);
+  gap:clamp(7px,1.3vw,10px);
   text-align:center;
   animation:pop .18s ease-out;
 }
@@ -91,16 +91,16 @@ canvas{
 .pn p{
   margin:0;
   color:var(--muted);
-  font-size:clamp(.75rem,1.7vw,.86rem);
+  font-size:clamp(.74rem,1.7vw,.85rem);
 }
-.row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;width:100%}
 button,input{
   font:inherit;
   border:2px solid var(--border);
   border-radius:6px;
   background:var(--panel-2);
   color:var(--text);
-  padding:8px 14px;
+  padding:8px 13px;
 }
 button{
   cursor:pointer;
@@ -110,14 +110,20 @@ button{
 }
 button:hover{border-color:var(--gold);background:#322b23}
 button:active{transform:translateY(2px);box-shadow:0 1px 0 #0d0b09}
+button.back{
+  border-color:#5a4d3f;
+  color:#cbbba6;
+  background:#191511;
+}
+button.back:hover{border-color:var(--gold);color:var(--gold)}
 input{
   background:#14110e;
   font-weight:700;
 }
 input:focus{outline:none;border-color:var(--gold)}
-#rc{width:min(100%,140px);text-transform:uppercase;text-align:center;letter-spacing:.15em}
-#nick{width:min(100%,185px);text-align:center;letter-spacing:.03em}
-#lk{text-transform:none;letter-spacing:0;font-size:.8rem;width:min(100%,280px);font-weight:400}
+#rc{width:min(100%,135px);text-transform:uppercase;text-align:center;letter-spacing:.15em}
+#nick{width:min(100%,180px);text-align:center;letter-spacing:.03em}
+#lk{text-transform:none;letter-spacing:0;font-size:.8rem;width:min(100%,270px);font-weight:400}
 button.main{
   background:var(--gold);
   border-color:#f4c56a;
@@ -125,36 +131,60 @@ button.main{
   font-weight:900;
   text-transform:uppercase;
   letter-spacing:.05em;
-  padding:9px 22px;
-  font-size:.9rem;
+  padding:9px 20px;
+  font-size:.88rem;
   box-shadow:0 4px 0 #7a5212;
 }
 button.main:hover{background:#f0b548}
 button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
+
+/* Sélecteur de skin */
+.skin-bar{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  background:#161310;
+  border:1.5px solid #3a3026;
+  border-radius:6px;
+  padding:5px 12px;
+}
+.skin-bar button{padding:4px 10px;font-size:.82rem}
+.skin-info{display:flex;align-items:center;gap:8px;min-width:142px;justify-content:center}
+.skin-info canvas{
+  width:38px;height:38px;
+  border-radius:50%;
+  background:#221e1a;
+  border:1.5px solid #463b30;
+  box-shadow:none;
+}
+.skin-info b{color:var(--gold);font-size:.84rem;text-transform:uppercase;letter-spacing:.04em}
+
 .how{display:grid;grid-template-columns:1fr 1fr;gap:7px;width:100%;text-align:left}
 .how div{
   background:#161310;
   border:1px solid #332a22;
   border-radius:6px;
   padding:7px 9px;
-  font-size:clamp(.66rem,1.5vw,.76rem);
+  font-size:clamp(.66rem,1.5vw,.75rem);
   color:#cbbba6;
   line-height:1.32;
 }
-.how b{color:var(--gold);text-transform:uppercase;font-size:.7rem;letter-spacing:.04em}
+.how b{color:var(--gold);text-transform:uppercase;font-size:.69rem;letter-spacing:.04em}
 .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;width:100%}
 .slot{
   border-radius:6px;
-  padding:8px 6px;
+  padding:7px 6px;
   border:2px dashed var(--border);
   color:var(--muted);
   font-weight:700;
-  font-size:.78rem;
+  font-size:.76rem;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 .slot.on{border-style:solid;color:#111;border-color:rgba(0,0,0,.4)}
+.slot small{display:block;font-size:.62rem;opacity:.8;font-weight:800;text-transform:uppercase}
 .stats{display:flex;gap:8px;width:100%}
 .stats div{
   flex:1;
@@ -191,8 +221,8 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   flex-direction:column;
   gap:10px;
 }
-.guide-head{display:flex;justify-content:space-between;align-items:center}
-.guide-head h3{margin:0;color:var(--gold);font-family:Georgia,serif;text-transform:uppercase;font-size:1.15rem}
+.guide-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.guide-head h3{margin:0;color:var(--gold);font-family:Georgia,serif;text-transform:uppercase;font-size:1.1rem}
 .guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;text-align:left}
 .g-card{
   background:#161310;
@@ -279,7 +309,7 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
   display:flex;
   flex-direction:column;
   gap:2px;
-  max-height:112px;
+  max-height:110px;
   overflow-y:auto;
   padding:4px 6px;
   border-radius:5px;
@@ -521,10 +551,11 @@ button.main:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5212}
 (function(){
 var W=800,H=560,cv=document.getElementById("c"),ctx=cv.getContext("2d"),ov=document.getElementById("ov"),pk=document.getElementById("pk"),pauseBtn=document.getElementById("pauseBtn"),invBar=document.getElementById("invBar"),guideModal=document.getElementById("guideModal");
 var chatBox=document.getElementById("chatBox"),chatLog=document.getElementById("chatLog"),chatIn=document.getElementById("chatIn"),chatToggle=document.getElementById("chatToggle");
-var best=0,savedNick="",ws,S=null,vis=[],keys={},ptr=null,PA=[],DEC=[],RINGS=[],FLOATS=[],GHOSTS=[],TR=[[],[],[],[],[],[]],tt=0,shake=0,lastHp=[],lastE=[],flashE={},BG=null,ovKey="",pkKey="",invKey="",last=0,lastIn="",idle=0;
+var best=0,savedNick="",savedSkin=0,ws,S=null,vis=[],keys={},ptr=null,PA=[],DEC=[],RINGS=[],FLOATS=[],GHOSTS=[],TR=[[],[],[],[],[],[]],tt=0,shake=0,lastHp=[],lastE=[],flashE={},BG=null,ovKey="",pkKey="",invKey="",last=0,lastIn="",idle=0;
 var FONT='"Trebuchet MS","Segoe UI",sans-serif',SERIF='Georgia,"Times New Roman",serif';
 var CO=["#59b878","#5b8fd9","#e09a3e","#d96277","#9b6bd9","#45b8b0"];
 var CO_DARK=["#2b663f","#2c4f87","#8c5a19","#853040","#573485","#226964"];
+var SKINS=["Recrue","Chevalier","Ninja","Viking","Mage","Cyber","Couronne","Faucheuse"];
 
 var EC=["#c94a4a","#d97b38","#7e52a0","#cbb042","#9e2a3b","#4fb3bf","#ff6b2b","#b8432e","#4e8c6f","#8e44ad"];
 var ER=[11,8,17,10,30,10,9,13,12,13];
@@ -555,6 +586,7 @@ var tq=document.getElementById("tt");
 try{
   best=parseInt(localStorage.getItem("survivor-best"),10)||0;
   savedNick=localStorage.getItem("survivor-nick")||"";
+  savedSkin=Math.max(0,Math.min(SKINS.length-1,parseInt(localStorage.getItem("survivor-skin"),10)||0));
 }catch(e){}
 
 function pName(i){
@@ -574,6 +606,77 @@ function toast(m,c){
 function fmt(s){s=Math.floor(s);return Math.floor(s/60)+":"+("0"+s%60).slice(-2)}
 function fmtNum(n){return Math.round(n||0).toLocaleString("fr-FR")}
 
+/* ---------- Dessin des skins ---------- */
+function drawSkinDetail(g,skin,c,cd,aimAngle){
+  g.save();
+  if(skin===1){
+    // Chevalier : casque métallique + cimier
+    g.strokeStyle="#cfd6de";g.lineWidth=2.5;
+    g.beginPath();g.arc(0,0,11,-2.5,-0.64);g.stroke();
+    g.fillStyle="#d94e4e";g.strokeStyle="#120d0a";g.lineWidth=1.4;
+    g.beginPath();g.moveTo(-2,-11);g.lineTo(0,-17);g.lineTo(3,-11);g.closePath();g.fill();g.stroke();
+  }else if(skin===2){
+    // Ninja : bandeau frontal + rubans flottants
+    g.fillStyle="#1c1917";
+    g.fillRect(-10.5,-5.5,21,3.5);
+    g.strokeStyle="#120d0a";g.lineWidth=1.5;
+    g.beginPath();g.moveTo(-10,-4);g.lineTo(-17,-8);g.moveTo(-10,-3);g.lineTo(-16,-1);g.stroke();
+  }else if(skin===3){
+    // Viking : casque à cornes d'ivoire
+    g.fillStyle="#f0e6d6";g.strokeStyle="#120d0a";g.lineWidth=1.6;
+    g.beginPath();g.moveTo(-9,-5);g.quadraticCurveTo(-17,-12,-13,-17);g.quadraticCurveTo(-10,-11,-6,-8);g.closePath();g.fill();g.stroke();
+    g.beginPath();g.moveTo(9,-5);g.quadraticCurveTo(17,-12,13,-17);g.quadraticCurveTo(10,-11,6,-8);g.closePath();g.fill();g.stroke();
+  }else if(skin===4){
+    // Mage : chapeau pointu étoilé
+    g.fillStyle="#3a285c";g.strokeStyle="#120d0a";g.lineWidth=1.8;
+    g.beginPath();g.moveTo(-13,-6);g.lineTo(13,-6);g.lineTo(2,-20);g.closePath();g.fill();g.stroke();
+    g.fillStyle="#ffd166";
+    g.beginPath();g.arc(1,-11,2,0,6.283);g.fill();
+  }else if(skin===5){
+    // Cyber : visière néon + antenne
+    g.strokeStyle="#120d0a";g.lineWidth=2;
+    g.beginPath();g.moveTo(6,-9);g.lineTo(8,-16);g.stroke();
+    g.fillStyle="#66f7ff";
+    g.beginPath();g.arc(8,-16,2.2,0,6.283);g.fill();
+    g.save();g.rotate(aimAngle);
+    g.fillStyle="#66f7ff";g.strokeStyle="#120d0a";g.lineWidth=1.2;
+    g.fillRect(1,-4.5,7.5,9);g.strokeRect(1,-4.5,7.5,9);
+    g.restore();
+  }else if(skin===6){
+    // Couronne : couronne dorée royale
+    g.fillStyle="#ffd166";g.strokeStyle="#120d0a";g.lineWidth=1.6;
+    g.beginPath();
+    g.moveTo(-8,-8);g.lineTo(-9,-16);g.lineTo(-4,-12);g.lineTo(0,-17);g.lineTo(4,-12);g.lineTo(9,-16);g.lineTo(8,-8);
+    g.closePath();g.fill();g.stroke();
+  }else if(skin===7){
+    // Faucheuse : capuche sombre + yeux luisants
+    g.fillStyle="#181512";g.strokeStyle="#0a0807";g.lineWidth=1.8;
+    g.beginPath();g.arc(0,-1,11.8,Math.PI*0.85,Math.PI*2.15);g.closePath();g.fill();g.stroke();
+    var ex=Math.cos(aimAngle)*4,ey=Math.sin(aimAngle)*4;
+    g.fillStyle="#ff6b6b";
+    g.beginPath();g.arc(ex-2,ey,1.7,0,6.283);g.arc(ex+2,ey,1.7,0,6.283);g.fill();
+  }
+  g.restore();
+}
+
+function renderSkinPreview(canvasEl,skinIdx,colIdx){
+  if(!canvasEl)return;
+  var g=canvasEl.getContext("2d");
+  g.clearRect(0,0,44,44);
+  var c=CO[colIdx%6],cd=CO_DARK[colIdx%6];
+  g.save();
+  g.translate(22,25);
+  g.fillStyle=c;g.beginPath();g.arc(0,0,11,0,6.283);g.fill();
+  g.fillStyle=cd;g.beginPath();g.arc(0,2,9.5,0.2,Math.PI-0.2);g.fill();
+  g.strokeStyle="#120d0a";g.lineWidth=2.4;g.beginPath();g.arc(0,0,11,0,6.283);g.stroke();
+  if(skinIdx!==5&&skinIdx!==7){
+    g.fillStyle="#f5ebd6";g.beginPath();g.arc(3.5,0,4.5,0,6.283);g.fill();
+    g.strokeStyle="#120d0a";g.lineWidth=1.5;g.stroke();
+  }
+  drawSkinDetail(g,skinIdx,c,cd,0);
+  g.restore();
+}
+
 function openGuide(){
   var cHtml=COMBO_DEFS.map(function(c){
     return '<div class="g-card"><b>★ '+c.name+'</b><span>Recette : '+c.reqTxt+'</span><em>'+c.desc+'</em></div>';
@@ -583,8 +686,8 @@ function openGuide(){
   }).join("");
   guideModal.style.display="flex";
   guideModal.innerHTML='<div class="guide-box">'+
-    '<div class="guide-head"><h3>Guide des Combos & Fusions</h3><button id="closeGuide">Fermer</button></div>'+
-    '<p style="margin:0;color:var(--muted);font-size:.75rem">Débloque jusqu’à <b>2 Combos</b> actifs (cumulables en niveaux). Lorsque la somme des niveaux de tes 2 combos atteint <b>3</b>, ils fusionnent en <b>1 seul Combo de Combo</b> (limite : 1 par joueur).</p>'+
+    '<div class="guide-head"><button class="back" id="closeGuide">← Retour</button><h3>Guide des Combos & Fusions</h3><span style="width:74px"></span></div>'+
+    '<p style="margin:0;color:var(--muted);font-size:.75rem">Débloque jusqu’à <b>2 Combos</b> actifs (cumulables en niveaux). Lorsque la somme des niveaux de tes 2 combos atteint <b>3</b>, ils fusionnent en <b>1 seul Combo de Combo</b>. Si tous les joueurs sont reliés ensemble, le <b>Lien Total</b> s’active (Dégâts ×1,65 · Cadence ×1,60 · +3 PV/s · Armure +25 %).</p>'+
     '<div class="guide-grid">'+cHtml+'</div>'+
     '<div class="guide-grid">'+sHtml+'</div>'+
   '</div>';
@@ -700,10 +803,24 @@ function setOv(key,html,fn){
   if(!html){ov.style.display="none";return}
   ov.style.display="flex";ov.innerHTML=html;if(fn)fn();
 }
+function leaveRoom(){
+  if(ws){
+    var old=ws;
+    ws=null;
+    try{old.close()}catch(e){}
+  }
+  S=null;vis=[];lastHp=[];lastE=[];flashE={};
+  PA=[];DEC=[];RINGS=[];FLOATS=[];GHOSTS=[];
+  TR=[[],[],[],[],[],[]];
+  ovKey="";pkKey="";invKey="";room="";
+  chatLog.innerHTML="";
+  history.replaceState(null,"",location.pathname);
+  lobby();
+}
 function how(){
   return '<div class="how">'+
-    '<div><b>Objectif : Vague 50 (1–6J)</b><br>Difficulté croissante selon le nombre de joueurs</div>'+
-    '<div><b>Déplacement & Esquive</b><br>Flèches / ZQSD · Espace pour dash · Entrée chat</div>'+
+    '<div><b>Objectif : Vague 50 (1–6J)</b><br>Boss redoutables & vagues progressives</div>'+
+    '<div><b>Lien Total d’Escouade</b><br>Relie tous les joueurs ensemble pour un gros bonus</div>'+
     '<div><b>Combos (max 2)</b><br>Cumule leurs niveaux pour les renforcer</div>'+
     '<div><b>Combo de Combo (max 1)</b><br>Fusionne 2 combos actifs (3 niveaux cumulés)</div>'+
   '</div>';
@@ -712,21 +829,46 @@ function lobby(msg){
   pauseBtn.style.display="none";
   invBar.style.display="none";
   chatBox.style.display="none";
-  setOv("L"+(msg||""),
+  pk.style.display="none";
+  setOv("L"+(msg||"")+"_"+room,
     '<div class="pn"><h2>Survivor Squad</h2><p>Survivez jusqu’à la vague 50 en escouade (1 à 6 joueurs).</p>'+how()+
     (msg?'<p style="color:#e5a93c;font-weight:700">'+msg+'</p>':'')+
+    '<div class="skin-bar">'+
+      '<button type="button" id="skPrev">◀</button>'+
+      '<div class="skin-info"><canvas id="skPrevCv" width="44" height="44"></canvas><b id="skName">'+SKINS[savedSkin]+'</b></div>'+
+      '<button type="button" id="skNext">▶</button>'+
+    '</div>'+
     '<div class="row">'+
       '<input id="nick" maxlength="14" placeholder="TON PSEUDO" value="'+esc(savedNick)+'">'+
       '<input id="rc" maxlength="6" placeholder="CODE SALLE" value="'+room+'">'+
     '</div>'+
     '<div class="row">'+
-      '<button id="btnGuide">Guide des Combos</button>'+
-      '<button class="main" id="go">Entrer</button>'+
+      (room?'<button type="button" class="back" id="clrRoom">← Effacer code</button>':'')+
+      '<button type="button" id="btnGuide">Guide des Combos</button>'+
+      '<button type="button" class="main" id="go">Entrer</button>'+
     '</div>'+
     '<p>Laisse le code vide pour créer une nouvelle salle.</p></div>',
     function(){
       var go=document.getElementById("go");
+      var skCv=document.getElementById("skPrevCv");
+      var skNm=document.getElementById("skName");
+      function updSkin(delta){
+        savedSkin=(savedSkin+delta+SKINS.length)%SKINS.length;
+        try{localStorage.setItem("survivor-skin",String(savedSkin))}catch(e){}
+        skNm.textContent=SKINS[savedSkin];
+        renderSkinPreview(skCv,savedSkin,0);
+      }
+      renderSkinPreview(skCv,savedSkin,0);
+      document.getElementById("skPrev").onclick=function(){updSkin(-1)};
+      document.getElementById("skNext").onclick=function(){updSkin(1)};
       document.getElementById("btnGuide").onclick=openGuide;
+      var clr=document.getElementById("clrRoom");
+      if(clr)clr.onclick=function(){
+        room="";
+        history.replaceState(null,"",location.pathname);
+        ovKey="";
+        lobby();
+      };
       go.onclick=function(){
         savedNick=(document.getElementById("nick").value||"").trim().slice(0,14);
         try{localStorage.setItem("survivor-nick",savedNick)}catch(e){}
@@ -740,14 +882,17 @@ function lobby(msg){
 }
 function connect(){
   ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host);
-  ws.onopen=function(){send({t:"join",room:room,name:savedNick});history.replaceState(null,"","?room="+room)};
+  ws.onopen=function(){send({t:"join",room:room,name:savedNick,skin:savedSkin});history.replaceState(null,"","?room="+room)};
   ws.onmessage=function(e){
     var d=JSON.parse(e.data);
-    if(d.t==="full"){ws.close();S=null;ovKey="";lobby("Salle complète (6/6), choisis un autre code.");return}
+    if(d.t==="full"){
+      var old=ws;ws=null;try{old.close()}catch(err){}
+      S=null;ovKey="";lobby("Salle complète (6/6), choisis un autre code.");return;
+    }
     if(d.t==="chat"){addChatMsg(d);return}
     onState(d);
   };
-  ws.onclose=function(){if(S){S=null;ovKey="";lobby("Connexion interrompue.")}};
+  ws.onclose=function(){if(ws&&S){S=null;ovKey="";lobby("Connexion interrompue.")}};
 }
 
 function buildStatsTable(d){
@@ -889,6 +1034,7 @@ function onState(d){
       addRing(W/2,H/2,240,"rgba(229,169,60,.35)",2);
     }
     if(wasB&&!isB)toast("Boss vaincu — Alliés relevés","#e5a93c");
+    if(!S.flk&&d.flk)toast("LIEN TOTAL ACTIF — Dégâts ×1,65 · Cadence ×1,60 · +3 PV/s","#ffd166");
     d.p.forEach(function(p,i){
       var o=S.p[i];if(!o)return;
       var nm=(d.names&&d.names[i])?d.names[i]:("J"+(i+1));
@@ -909,19 +1055,42 @@ function onState(d){
   if(playing)renderInventory(d);
 
   if(d.st==="wait"){
+    var mySkin=(d.skins&&d.skins[d.me]!==undefined)?d.skins[d.me]:savedSkin;
     var slotsHtml="";
     for(var si=0;si<6;si++){
       var active=si<d.n;
       var sLabel=active?esc(pName(si)):"Emplacement J"+(si+1);
-      slotsHtml+='<div class="slot'+(active?' on" style="background:'+CO[si]+'">'+sLabel:' ">'+sLabel)+'</div>';
+      var sSkin=active?'<small>'+SKINS[(d.skins&&d.skins[si])||0]+'</small>':'';
+      slotsHtml+='<div class="slot'+(active?' on" style="background:'+CO[si]+'">'+sLabel+sSkin:' ">'+sLabel)+'</div>';
     }
-    setOv("w_"+d.n+"_"+(d.names||[]).join(","),
+    setOv("w_"+d.n+"_"+(d.names||[]).join(",")+"_"+(d.skins||[]).join(","),
       '<div class="pn"><h2>Salle '+d.code+' ('+d.n+'/6)</h2>'+
       '<div class="slots">'+slotsHtml+'</div>'+
+      '<div class="skin-bar">'+
+        '<button type="button" id="wSkPrev">◀</button>'+
+        '<div class="skin-info"><canvas id="wSkCv" width="44" height="44"></canvas><b>'+SKINS[mySkin]+'</b></div>'+
+        '<button type="button" id="wSkNext">▶</button>'+
+      '</div>'+
       '<p>Partage ce lien pour jouer jusqu’à 6 en coopération.</p>'+
       '<div class="row"><input id="lk" readonly value="'+location.origin+'/?room='+d.code+'"><button id="cp">Copier</button></div>'+
-      '<div class="row"><button id="wGuide">Guide des Combos</button><button class="main" id="st">Lancer la partie</button></div></div>',
+      '<div class="row">'+
+        '<button class="back" id="wBack">← Retour</button>'+
+        '<button id="wGuide">Guide des Combos</button>'+
+        '<button class="main" id="st">Lancer la partie</button>'+
+      '</div></div>',
       function(){
+        renderSkinPreview(document.getElementById("wSkCv"),mySkin,d.me);
+        document.getElementById("wSkPrev").onclick=function(){
+          var ns=(mySkin-1+SKINS.length)%SKINS.length;
+          savedSkin=ns;try{localStorage.setItem("survivor-skin",String(ns))}catch(e){}
+          send({t:"skin",skin:ns});
+        };
+        document.getElementById("wSkNext").onclick=function(){
+          var ns=(mySkin+1)%SKINS.length;
+          savedSkin=ns;try{localStorage.setItem("survivor-skin",String(ns))}catch(e){}
+          send({t:"skin",skin:ns});
+        };
+        document.getElementById("wBack").onclick=leaveRoom;
         document.getElementById("wGuide").onclick=openGuide;
         document.getElementById("cp").onclick=function(){
           var i=document.getElementById("lk");i.select();
@@ -937,8 +1106,11 @@ function onState(d){
       '<p class="rec">L’escouade a survécu aux 50 vagues et vaincu les 5 boss !</p>'+
       '<div class="stats"><div><b>50 / 50</b><small>VAGUES</small></div><div><b>'+fmt(d.tm)+'</b><small>TEMPS TOTAL</small></div><div><b>Niv. '+d.l+'</b><small>ESCOUADE</small></div><div><b>'+fmtNum(d.k)+'</b><small>ÉLIMINÉS</small></div></div>'+
       buildStatsTable(d)+
-      '<button class="main" id="rs">Rejouer [Entrée]</button></div>',
-      function(){document.getElementById("rs").onclick=function(){send({t:"restart"})}}
+      '<div class="row"><button class="back" id="winHome">← Accueil</button><button class="main" id="rs">Rejouer [Entrée]</button></div></div>',
+      function(){
+        document.getElementById("winHome").onclick=leaveRoom;
+        document.getElementById("rs").onclick=function(){send({t:"restart"})};
+      }
     );
   }else if(d.st==="over"){
     var rec=d.tm>best;
@@ -948,8 +1120,11 @@ function onState(d){
       (rec?'<p class="rec">Nouveau record de survie</p>':'<p>Record : '+fmt(best)+'</p>')+
       '<div class="stats"><div><b>Vague '+d.wv+'/50</b><small>ATTEINTE</small></div><div><b>'+fmt(d.tm)+'</b><small>SURVIE</small></div><div><b>Niv. '+d.l+'</b><small>ESCOUADE</small></div><div><b>'+fmtNum(d.k)+'</b><small>ÉLIMINÉS</small></div></div>'+
       buildStatsTable(d)+
-      '<button class="main" id="rs">Rejouer [Entrée]</button></div>',
-      function(){document.getElementById("rs").onclick=function(){send({t:"restart"})}}
+      '<div class="row"><button class="back" id="overHome">← Accueil</button><button class="main" id="rs">Rejouer [Entrée]</button></div></div>',
+      function(){
+        document.getElementById("overHome").onclick=leaveRoom;
+        document.getElementById("rs").onclick=function(){send({t:"restart"})};
+      }
     );
   }else if(d.mpz){
     var by=d.pby===d.me?"toi":esc(pName(d.pby));
@@ -957,8 +1132,9 @@ function onState(d){
       '<div class="pn"><h2>Jeu en pause</h2>'+
       '<p>Partie mise en pause par '+by+'.</p>'+
       '<div class="stats"><div><b>Vague '+d.wv+'/50</b><small>EN COURS</small></div><div><b>Niv. '+d.l+'</b><small>ESCOUADE</small></div><div><b>'+fmt(d.tm)+'</b><small>TEMPS</small></div></div>'+
-      '<div class="row"><button id="pGuide">Guide des Combos</button><button class="main" id="resume">Reprendre [P]</button></div></div>',
+      '<div class="row"><button class="back" id="pzLeave">← Quitter</button><button id="pGuide">Guide des Combos</button><button class="main" id="resume">Reprendre [P]</button></div></div>',
       function(){
+        document.getElementById("pzLeave").onclick=leaveRoom;
         document.getElementById("pGuide").onclick=openGuide;
         document.getElementById("resume").onclick=function(){send({t:"pause"})};
       }
@@ -997,6 +1173,10 @@ pauseBtn.onclick=function(){send({t:"pause"})};
 var pickMap={"Digit1":0,"Numpad1":0,"1":0,"&":0,"Digit2":1,"Numpad2":1,"2":1,"é":1,"Digit3":2,"Numpad3":2,"3":2,'"':2};
 document.addEventListener("keydown",function(e){
   if(e.target.tagName==="INPUT")return;
+  if(e.key==="Escape"&&guideModal.style.display==="flex"){
+    guideModal.style.display="none";
+    return;
+  }
   if(S&&(e.key==="Enter"||e.key==="t"||e.key==="T")){
     if(S.st==="over"||S.st==="win"){
       if(e.key==="Enter")send({t:"restart"});
@@ -1045,7 +1225,6 @@ function drawEnemy(e,a){
   var step=S&&S.pz?0:Math.sin(tt*(fast?22:12)+phase);
   var tilt=S&&S.pz?0:Math.cos(tt*(fast?11:6)+phase)*.09;
 
-  // Aura de pouvoir / télégraphe sur les boss
   if(k===4&&(charging||e[3]<50)){
     ctx.save();
     ctx.strokeStyle=charging?"rgba(255,209,102,.55)":"rgba(224,86,86,.35)";
@@ -1138,26 +1317,38 @@ function drawEnemy(e,a){
 }
 
 function drawPlayer(p,i,v,aimAngle){
-  var c=CO[i%6],cd=CO_DARK[i%6],T=TR[i];
+  var c=CO[i%6],cd=CO_DARK[i%6],T=TR[i],skin=p[16]||0;
   var spd=Math.min(1,Math.hypot(v.vx||0,v.vy||0)/6);
   var bob=S&&S.pz?0:Math.sin(tt*15+i)*2.2*spd;
   var sq=S&&S.pz?0:Math.sin(tt*15+i)*.09*spd;
   var lean=(v.vx||0)*.022;
 
   if(p[4]){
-    ctx.strokeStyle="rgba(240,230,214,.25)";ctx.lineWidth=1.5;ctx.setLineDash([4,5]);
+    var revBy=p[17]||0;
+    ctx.strokeStyle=revBy>1?"rgba(89,184,120,.55)":"rgba(240,230,214,.25)";
+    ctx.lineWidth=revBy>1?2.5:1.5;ctx.setLineDash([4,5]);
     ctx.beginPath();ctx.arc(v.x,v.y,62,0,6.283);ctx.stroke();ctx.setLineDash([]);
 
     ctx.strokeStyle="#120d0a";ctx.lineWidth=6;ctx.beginPath();ctx.arc(v.x,v.y,21,0,6.283);ctx.stroke();
-    ctx.strokeStyle=c;ctx.lineWidth=3.5;
+    ctx.strokeStyle=revBy>1?"#59b878":c;ctx.lineWidth=3.5;
     ctx.beginPath();ctx.arc(v.x,v.y,21,-1.57,-1.57+6.283*p[5]/2.2);ctx.stroke();
 
     ctx.fillStyle="#5c5349";ctx.strokeStyle="#120d0a";ctx.lineWidth=2.5;
     ctx.beginPath();ctx.arc(v.x,v.y,10,0,6.283);ctx.fill();ctx.stroke();
 
-    ctx.fillStyle="#f0e6d6";ctx.font="bold 10px "+FONT;ctx.textAlign="center";
-    ctx.fillText(pName(i)+" (À TERRE)",v.x,v.y-29);
+    ctx.fillStyle=revBy>1?"#7ee09b":"#f0e6d6";ctx.font="bold 10px "+FONT;ctx.textAlign="center";
+    var dTxt=pName(i)+" (À TERRE"+(revBy>1?" · RÉANIM ×"+revBy:"")+")";
+    ctx.fillText(dTxt,v.x,v.y-29);
     return;
+  }
+
+  // Aura dorée quand le Lien Total est actif
+  if(p[15]===2){
+    ctx.save();
+    ctx.strokeStyle="rgba(255,209,102,.45)";
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(v.x,v.y,16+Math.sin(tt*8+i)*1.5,0,6.283);ctx.stroke();
+    ctx.restore();
   }
 
   if(i===S.me){
@@ -1200,10 +1391,13 @@ function drawPlayer(p,i,v,aimAngle){
   ctx.strokeStyle="#120d0a";ctx.lineWidth=2.5;
   ctx.beginPath();ctx.arc(0,0,11,0,6.283);ctx.stroke();
 
-  var vx=Math.cos(aimAngle)*3.5,vy=Math.sin(aimAngle)*3.5;
-  ctx.fillStyle="#f5ebd6";
-  ctx.beginPath();ctx.arc(vx,vy,4.5,0,6.283);ctx.fill();
-  ctx.strokeStyle="#120d0a";ctx.lineWidth=1.5;ctx.stroke();
+  if(skin!==5&&skin!==7){
+    var vx=Math.cos(aimAngle)*3.5,vy=Math.sin(aimAngle)*3.5;
+    ctx.fillStyle="#f5ebd6";
+    ctx.beginPath();ctx.arc(vx,vy,4.5,0,6.283);ctx.fill();
+    ctx.strokeStyle="#120d0a";ctx.lineWidth=1.5;ctx.stroke();
+  }
+  drawSkinDetail(ctx,skin,c,cd,aimAngle);
   ctx.restore();
 
   ctx.globalAlpha=1;
@@ -1223,7 +1417,7 @@ function drawPlayer(p,i,v,aimAngle){
   }
 
   ctx.fillStyle=i===S.me?"#ffd166":"#f0e6d6";ctx.font="bold 10px "+FONT;ctx.textAlign="center";
-  ctx.fillText(pName(i),v.x,v.y-19);
+  ctx.fillText(pName(i),v.x,v.y-21);
 }
 
 /* ---------- Rendu principal ---------- */
@@ -1290,12 +1484,15 @@ function draw(){
       ctx.beginPath();ctx.arc(b[0],b[1],4.5,0,6.283);ctx.fill();ctx.stroke();
     });
 
+    // Liens d'escouade (dorés pulsants en Lien Total)
     (S.lks||[]).forEach(function(pair){
       var v0=vis[pair[0]],v1=vis[pair[1]];
       if(!v0||!v1)return;
-      ctx.strokeStyle="#120d0a";ctx.lineWidth=4;
+      ctx.strokeStyle="#120d0a";ctx.lineWidth=S.flk?6:4;
       ctx.beginPath();ctx.moveTo(v0.x,v0.y);ctx.lineTo(v1.x,v1.y);ctx.stroke();
-      ctx.strokeStyle="#e5a93c";ctx.lineWidth=2;ctx.setLineDash([6,4]);
+      ctx.strokeStyle=S.flk?"#ffd166":"#e5a93c";
+      ctx.lineWidth=S.flk?3.2:2;
+      if(!S.flk)ctx.setLineDash([6,4]);
       ctx.beginPath();ctx.moveTo(v0.x,v0.y);ctx.lineTo(v1.x,v1.y);ctx.stroke();
       ctx.setLineDash([]);
     });
@@ -1328,7 +1525,7 @@ function draw(){
   }
   ctx.restore();
 
-  // HUD (jusqu'à 6 joueurs : 3 à gauche, 3 à droite)
+  // HUD
   if(S&&S.st!=="wait"){
     var me=S.p[S.me];
     if(me&&me[6]&&!S.pz){
@@ -1376,6 +1573,9 @@ function draw(){
       rr(bx,by,bw,16,4);ctx.strokeStyle="#e5a93c";ctx.lineWidth=2;ctx.stroke();
       ctx.fillStyle="#f0e6d6";ctx.font="bold 9.5px "+FONT;ctx.textAlign="center";
       ctx.fillText(S.bn.toUpperCase()+" — "+S.bh+"%",W/2,by+12);
+    }else if(S.flk){
+      ctx.textAlign="center";ctx.font="bold 11.5px "+FONT;
+      ctx.fillStyle="#ffd166";ctx.fillText("✦ LIEN TOTAL ACTIF (DÉGÂTS ×1,65 · CAD. ×1,6 · +3 PV/S) ✦",W/2,66);
     }else if(me&&me[15]){
       ctx.textAlign="center";ctx.font="bold 11.5px "+FONT;
       ctx.fillStyle="#e5a93c";ctx.fillText("LIEN DE GARDE ACTIF",W/2,66);
