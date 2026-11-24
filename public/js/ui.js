@@ -1,13 +1,14 @@
 window.UI = (function () {
   var ov = document.getElementById("ov");
   var pk = document.getElementById("pk");
-  var invBar = document.getElementById("invBar");
-  var hudBtns = document.getElementById("hudBtns");
+  var leftHud = document.getElementById("leftHud");
+  var rightHud = document.getElementById("rightHud");
   var subModal = document.getElementById("subModal");
   var tabModal = document.getElementById("tabModal");
   var tq = document.getElementById("tt");
 
-  var ovKey = "", pkKey = "", invKey = "", lbTab = 1, encyTab = "classes", authMode = "login", authErr = "";
+  var ovKey = "", pkKey = "", leftKey = "", rightKey = "";
+  var lbTab = 1, encyTab = "classes", authMode = "login", authErr = "";
 
   function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -29,11 +30,45 @@ window.UI = (function () {
     if (fn) fn();
   }
 
-  function clearKeys() { ovKey = ""; pkKey = ""; invKey = ""; }
+  function clearKeys() {
+    ovKey = ""; pkKey = ""; leftKey = ""; rightKey = "";
+  }
+
+  function setSideHudsVisible(show) {
+    if (show) {
+      leftHud.classList.add("active");
+      rightHud.classList.add("active");
+    } else {
+      leftHud.classList.remove("active");
+      rightHud.classList.remove("active");
+      leftHud.innerHTML = "";
+      rightHud.innerHTML = "";
+    }
+  }
 
   function rankBadge(App, rkIdx) {
     var rk = (App.ency.ranks || [])[rkIdx] || { name: "Bronze", col: "#cd7f32" };
     return '<span class="rank-pill" style="color:' + rk.col + '">' + esc(rk.name) + "</span>";
+  }
+
+  function getMasteryInfo(cm) {
+    var xp = (cm.kills || 0) + (cm.wins || 0) * 250 + (cm.games || 0) * 30;
+    var tiers = [
+      { name: "Novice", min: 0, col: "#9c8e7c" },
+      { name: "Apprenti", min: 150, col: "#59b878" },
+      { name: "Adepte", min: 500, col: "#5b8fd9" },
+      { name: "Vétéran", min: 1200, col: "#b06be8" },
+      { name: "Maître", min: 2500, col: "#e5a93c" },
+      { name: "Grand Maître", min: 5000, col: "#ff6b6b" }
+    ];
+    var idx = 0;
+    for (var i = 0; i < tiers.length; i++) {
+      if (xp >= tiers[i].min) idx = i;
+    }
+    var cur = tiers[idx];
+    var next = tiers[idx + 1] || null;
+    var pct = next ? Math.min(100, Math.round(((xp - cur.min) / (next.min - cur.min)) * 100)) : 100;
+    return { xp: xp, tier: cur, next: next, pct: pct, isMax: !next };
   }
 
   function buildSkinSelect(App, id, selectedIdx, takenMap) {
@@ -57,7 +92,7 @@ window.UI = (function () {
     }
     var isReg = authMode === "register";
     return '<div class="auth-box"><div class="auth-top">' +
-      '<b>' + (isReg ? "Créer un compte (sauvegarde rang & stats)" : "Connexion compte joueur") + "</b>" +
+      "<b>" + (isReg ? "Créer un compte (sauvegarde rang & maîtrise)" : "Connexion compte joueur") + "</b>" +
       '<button type="button" id="toggleAuth" style="padding:3px 8px;font-size:.70rem">' + (isReg ? "Déjà un compte ?" : "Créer un compte") + "</button>" +
       '</div><div class="row">' +
       '<input id="authUser" maxlength="18" placeholder="Pseudo (3-18 car.)" style="width:145px">' +
@@ -67,13 +102,12 @@ window.UI = (function () {
   }
 
   function showHome(App, msg) {
-    hudBtns.style.display = "none";
-    invBar.style.display = "none";
+    setSideHudsVisible(false);
     pk.style.display = "none";
     var classes = App.ency.classes || [];
     var curClass = classes[App.selectedSkin] || { bonus: "" };
 
-    setOv("home_" + (App.user ? App.user.id : 0) + "_" + authMode + "_" + authErr + "_" + (msg || ""),
+    setOv("home_" + (App.user ? App.user.id + "_" + App.user.games + "_" + App.user.rank : 0) + "_" + authMode + "_" + authErr + "_" + (msg || ""),
       '<div class="pn"><h2>Survivor Squad</h2>' +
       renderAuthSection(App) +
       (msg ? '<p style="color:#e05656;font-weight:700">' + esc(msg) + "</p>" : "") +
@@ -89,6 +123,7 @@ window.UI = (function () {
         '<button type="button" id="btnJoin">Rejoindre</button>' +
       "</div>" +
       '<div class="row">' +
+        '<button type="button" id="btnProfile">Profil &amp; Maîtrise</button>' +
         '<button type="button" id="btnLB">Classement</button>' +
         '<button type="button" id="btnEncy">Encyclopédie</button>' +
         '<button type="button" id="btnPatch">Patch Notes</button>' +
@@ -129,6 +164,7 @@ window.UI = (function () {
           var c = document.getElementById("joinCode").value.trim().toUpperCase();
           if (c) App.connectAndEnter("join", c);
         };
+        document.getElementById("btnProfile").onclick = function () { openProfile(App); };
         document.getElementById("btnLB").onclick = function () { openLeaderboard(App, 1); };
         document.getElementById("btnEncy").onclick = function () { openEncyclopedia(App); };
         document.getElementById("btnPatch").onclick = function () { openPatchNotes(App); };
@@ -137,6 +173,7 @@ window.UI = (function () {
   }
 
   function showRoomLobby(App, d) {
+    setSideHudsVisible(false);
     var classes = App.ency.classes || [];
     var ranks = App.ency.ranks || [];
     var mySkin = (d.skins && d.skins[d.me] !== undefined) ? d.skins[d.me] : App.selectedSkin;
@@ -168,6 +205,7 @@ window.UI = (function () {
       '<div class="row"><input id="lk" readonly value="' + location.origin + "/?room=" + d.code + '" style="width:230px;font-size:.74rem"><button id="cp">Copier</button></div>' +
       '<div class="row">' +
         '<button class="back" id="wBack">← Quitter</button>' +
+        '<button id="wProfile">Profil</button>' +
         '<button id="wLB">Classement</button>' +
         '<button id="wEncy">Encyclopédie</button>' +
         '<button id="wPatch">Patch Notes</button>' +
@@ -180,6 +218,7 @@ window.UI = (function () {
           App.send({ t: "skin", sk: ns });
         };
         document.getElementById("wBack").onclick = function () { App.leaveRoom(); };
+        document.getElementById("wProfile").onclick = function () { openProfile(App); };
         document.getElementById("wLB").onclick = function () { openLeaderboard(App, d.n); };
         document.getElementById("wEncy").onclick = function () { openEncyclopedia(App); };
         document.getElementById("wPatch").onclick = function () { openPatchNotes(App); };
@@ -192,6 +231,132 @@ window.UI = (function () {
         if (stBtn) stBtn.onclick = function () { App.send({ t: "start" }); };
       }
     );
+  }
+
+  // --- HUD externe gauche : Salle, Escouade, Inventaire & Contrôles ---
+  function renderLeftHud(App, d) {
+    var themes = App.ency.themes || [];
+    var ranks = App.ency.ranks || [];
+    var classes = App.ency.classes || [];
+    var upgrades = App.ency.upgrades || [];
+    var combos = App.ency.combos || [];
+    var supers = App.ency.super_combos || [];
+
+    var curTheme = themes[d.th || 0] || { name: "Arène de Braises", accent: "#e5a93c" };
+    var curRk = ranks[d.myRank || 0] || { name: "Bronze", target: 1440 };
+    var nextRk = ranks[Math.min(ranks.length - 1, (d.myRank || 0) + 1)] || curRk;
+    var timeOk = d.tm <= nextRk.target;
+
+    var key = Math.floor(d.tm) + "|" + d.th + "|" + d.k + "|" + JSON.stringify(d.p) + "|" + JSON.stringify(d.inv) + "|" + JSON.stringify(d.cmb) + "|" + JSON.stringify(d.sup);
+    if (key === leftKey) return;
+    leftKey = key;
+
+    // 1. Bloc Salle & Chrono
+    var infoHtml = '<div class="hud-sec">' +
+      '<div class="hud-title"><span>Salle ' + esc(d.code) + "</span><span>" + esc(curRk.name) + "</span></div>" +
+      '<div class="map-pill" style="border-color:' + curTheme.accent + ';color:' + curTheme.accent + '"><span>' + esc(curTheme.name) + '</span><small style="color:var(--muted)">Boss : ' + esc(curTheme.boss || "") + "</small></div>" +
+      '<div style="display:flex;justify-content:space-between;font-size:.73rem">' +
+        '<span>Chrono : <b style="color:' + (timeOk ? "#59b878" : "#e05656") + '">' + App.fmt(d.tm) + "</b></span>" +
+        '<span>Cible : <b>' + App.fmt(nextRk.target) + "</b></span>" +
+      "</div>" +
+      '<div style="display:flex;justify-content:space-between;font-size:.71rem;color:#cbbba6">' +
+        '<span>Kills totaux : <b>' + d.k + "</b></span>" +
+        '<span>Relances : <b style="color:var(--gold)">' + (d.rr || 0) + "</b></span>" +
+      "</div>" +
+    "</div>";
+
+    // 2. Bloc Escouade (PV, état, kills)
+    var squadHtml = '<div class="hud-sec"><div class="hud-title"><span>Escouade (' + d.n + "/6)</span><span>" + (d.flk ? "Lien ×2" : "") + "</span></div>";
+    d.p.forEach(function (p, i) {
+      var isMe = i === d.me;
+      var down = p[4];
+      var hpPct = Math.max(0, Math.min(100, (p[2] / p[3]) * 100));
+      var cl = classes[p[16] || 0] || { name: "" };
+      var barCol = down ? "#5c5349" : Sprites.CO[i % 6];
+      squadHtml += '<div class="sq-card' + (isMe ? " me" : "") + (down ? " down" : "") + '">' +
+        '<div class="sq-top"><div class="sq-who"><img src="' + Sprites.getSkinDataUrl(p[16] || 0, i) + '" alt=""><b>' + esc(App.pName(i)) + "</b></div>" +
+        '<span style="font-weight:800;font-size:.69rem">' + (down ? "À TERRE" : Math.ceil(p[2]) + "/" + p[3]) + "</span></div>" +
+        '<div class="sq-bar"><div class="sq-fill" style="width:' + hpPct + "%;background:" + barCol + '"></div></div>' +
+        '<div class="sq-sub"><span>' + esc(cl.name) + '</span><span>Kills : <b style="color:var(--text)">' + (p[19] || 0) + "</b></span></div>" +
+      "</div>";
+    });
+    squadHtml += "</div>";
+
+    // 3. Bloc Inventaire & Synergies
+    var me = d.p[d.me];
+    var mySk = me ? (me[16] || 0) : App.selectedSkin;
+    var myCl = classes[mySk] || { name: "Recrue", bonus: "" };
+    var invHtml = '<div class="hud-sec"><div class="hud-title"><span>Équipement</span><span>' + esc(myCl.name) + "</span></div>" +
+      '<div class="inv-wrap">' +
+      '<div class="inv-lbl"><img src="' + Sprites.getSkinDataUrl(mySk, d.me) + '" alt=""><span>' + esc(myCl.bonus) + "</span></div>";
+
+    (d.sup || []).forEach(function (it) {
+      if (supers[it.id]) invHtml += '<span class="inv-sup">✦ ' + esc(supers[it.id].name) + "</span>";
+    });
+    (d.cmb || []).forEach(function (it) {
+      if (combos[it.id]) invHtml += '<span class="inv-cmb">★ ' + esc(combos[it.id].name) + " N." + it.lvl + "</span>";
+    });
+    (d.inv || []).forEach(function (cnt, idx) {
+      if (cnt > 0 && upgrades[idx]) {
+        invHtml += '<span class="inv-item"><img src="' + Sprites.UP_IMGS[idx] + '" alt="">' + esc(upgrades[idx].short) + " <em>×" + cnt + "</em></span>";
+      }
+    });
+    invHtml += "</div></div>";
+
+    // 4. Boutons rapides hors du canvas
+    var dashCd = me ? me[9] : 0;
+    var actHtml = '<div class="hud-sec"><div class="hud-actions">' +
+      '<button type="button" data-act="tab">Stats [Tab]</button>' +
+      '<button type="button" data-act="pause">Pause [P]</button>' +
+      '<button type="button" class="full-w" data-act="dash">' + (dashCd > 0 ? "Esquive (" + dashCd.toFixed(1) + "s)" : "Esquive [Espace]") + "</button>" +
+    "</div></div>";
+
+    leftHud.innerHTML = infoHtml + squadHtml + invHtml + actHtml;
+  }
+
+  // --- HUD externe droite : Tableau de toutes les statistiques modifiées ---
+  function renderRightHud(App, d) {
+    var st = d.stMe;
+    if (!st) return;
+    var key = JSON.stringify(st);
+    if (key === rightKey) return;
+    rightKey = key;
+
+    function row(lbl, val, isBoosted, isGold) {
+      var cls = isGold ? "gold-val" : (isBoosted ? "boosted" : "");
+      return "<tr><td>" + lbl + '</td><td class="' + cls + '">' + val + "</td></tr>";
+    }
+
+    var offRows =
+      row("Dégâts", "×" + st.dmg.toFixed(2), st.dmg > 1.01, st.dmg >= 2.0) +
+      row("Cadence de tir", st.rate.toFixed(1) + " /s", st.rate > 2.0, false) +
+      row("Projectiles / salve", st.multi, st.multi > 1, st.multi >= 4) +
+      row("Perforation", "+" + st.pierce, st.pierce > 0, false) +
+      row("Ricochets", "+" + st.bounce, st.bounce > 0, false) +
+      row("Chance critique", st.crit + " %", st.crit > 0, st.crit >= 40) +
+      row("Dégâts critiques", "×" + st.critMult.toFixed(1), st.critMult > 2.2, false) +
+      row("Vitesse projectiles", st.projSpd + " %", st.projSpd > 100, false) +
+      row("Onde de choc", st.nova > 0 ? ("Niv." + st.nova + " (/" + st.novaEvery + " tirs)") : "Inactive", st.nova > 0, st.nova > 0) +
+      row("Déflagration", st.corpseExp > 0 ? (st.corpseExp + " % dég.") : "Inactive", st.corpseExp > 0, false) +
+      row("Drones autonomes", st.drone, st.drone > 0, st.drone > 0);
+
+    var defRows =
+      row("Points de vie", st.hp + " / " + st.maxHp, st.maxHp > 100, false) +
+      row("Armure (réduction)", st.armor + " %", st.armor > 0, st.armor >= 25) +
+      row("Régénération", "+" + st.regen.toFixed(1) + " PV/s", st.regen > 0, false) +
+      row("Vol de vie", st.lifesteal.toFixed(1) + " %", st.lifesteal > 0, false) +
+      row("Vitesse déplacement", st.speed + " %", st.speed > 100, false);
+
+    var utilRows =
+      row("Lames orbitales", st.orb + " (" + st.orbSpd + " %)", st.orb > 0, st.orb >= 4) +
+      row("Ralentissement givre", st.frostSlow > 0 ? ("-" + st.frostSlow + " %") : "Inactif", st.frostSlow > 0, false) +
+      row("Portée aimant", st.magnet + " px", st.magnet > 85, false) +
+      row("Gain d’expérience", st.xpMult + " %", st.xpMult > 100, false);
+
+    rightHud.innerHTML =
+      '<div class="hud-sec"><div class="hud-title"><span>Stats Offensives</span><span>En direct</span></div><table class="stat-tbl"><tbody>' + offRows + "</tbody></table></div>" +
+      '<div class="hud-sec"><div class="hud-title"><span>Stats Défensives</span><span></span></div><table class="stat-tbl"><tbody>' + defRows + "</tbody></table></div>" +
+      '<div class="hud-sec"><div class="hud-title"><span>Contrôle &amp; Utilitaire</span><span></span></div><table class="stat-tbl"><tbody>' + utilRows + "</tbody></table></div>";
   }
 
   function buildStatsTable(App, d, liveMode) {
@@ -239,36 +404,10 @@ window.UI = (function () {
     tabModal.innerHTML = '<div class="tab-box"><div class="modal-head"><h3>Escouade — Vague ' + App.S.wv + "/50</h3><span>Temps : <b>" + App.fmt(App.S.tm) + "</b></span></div>" + buildStatsTable(App, App.S, true) + "</div>";
   }
 
-  function renderInventory(App, d) {
-    var me = d.p[d.me];
-    var mySk = me ? (me[16] || 0) : App.selectedSkin;
-    var key = mySk + "|" + JSON.stringify(d.inv) + "|" + JSON.stringify(d.cmb) + "|" + JSON.stringify(d.sup) + "|" + JSON.stringify(d.stMe);
-    if (key === invKey) return;
-    invKey = key;
-
-    var classes = App.ency.classes || [];
-    var upgrades = App.ency.upgrades || [];
-    var combos = App.ency.combos || [];
-    var supers = App.ency.super_combos || [];
-    var cl = classes[mySk] || { name: "Recrue", bonus: "" };
-
-    var html = '<span class="inv-lbl" title="' + esc(cl.bonus) + '"><img src="' + Sprites.getSkinDataUrl(mySk, d.me) + '" alt="">' + esc(cl.name) + "</span>";
-    if (d.stMe) {
-      html += '<span class="inv-item syn">Dég. <em>×' + d.stMe.dmg.toFixed(2) + "</em> · Cad. <em>" + d.stMe.rate.toFixed(1) + "/s</em></span>";
-    }
-    (d.inv || []).forEach(function (cnt, idx) {
-      if (cnt > 0 && upgrades[idx]) {
-        html += '<span class="inv-item"><img src="' + Sprites.UP_IMGS[idx] + '" alt="">' + esc(upgrades[idx].short) + " <em>×" + cnt + "</em></span>";
-      }
-    });
-    (d.cmb || []).forEach(function (it) { if (combos[it.id]) html += '<span class="inv-cmb">★ ' + esc(combos[it.id].name) + " N." + it.lvl + "</span>"; });
-    (d.sup || []).forEach(function (it) { if (supers[it.id]) html += '<span class="inv-sup">✦ ' + esc(supers[it.id].name) + "</span>"; });
-    invBar.innerHTML = html;
-  }
-
   function renderUpgradeCards(App, d) {
     var me = d.p[d.me];
-    var kk = JSON.stringify(d.ch) + "|" + (me ? me[7] : 0);
+    var rr = d.rr || 0;
+    var kk = JSON.stringify(d.ch) + "|" + (me ? me[7] : 0) + "|" + rr;
     if (kk === pkKey) return;
     pkKey = kk;
 
@@ -276,7 +415,7 @@ window.UI = (function () {
     var badges = ["1 / &", "2 / é", '3 / "'];
     if (d.ch && d.ch.length) {
       pk.style.display = "flex";
-      pk.innerHTML = d.ch.map(function (u, i) {
+      var cardsHtml = d.ch.map(function (u, i) {
         var uIdx = u[0], uTitle = u[1], uDesc = u[2], hint = u[3], rarIdx = u[4] || 0;
         var rar = rarities[rarIdx] || { name: "Commun", col: "#b8aea0" };
         var cTag = "";
@@ -284,15 +423,76 @@ window.UI = (function () {
           var cls = hint.type === "fuse" || hint.type === "sup" ? "fuse" : (hint.type === "full" ? "full" : "");
           cTag = '<div class="cmbTag ' + cls + '">' + esc(hint.txt) + "</div>";
         }
-        return '<button data-i="' + i + '" style="--rar-col:' + rar.col + '"><i>' + badges[i] + "</i>" +
+        return '<button type="button" data-i="' + i + '" style="--rar-col:' + rar.col + '"><i>' + badges[i] + "</i>" +
           '<span class="rar-pill">' + esc(rar.name) + "</span>" +
           '<div class="pk-top"><img class="pk-ico" src="' + Sprites.UP_IMGS[uIdx] + '" alt=""><b>' + esc(uTitle) + "</b></div>" +
           "<small>" + esc(uDesc) + "</small>" + cTag + "</button>";
-      }).join("") + (me && me[7] > 1 ? "<span>+" + (me[7] - 1) + "</span>" : "");
+      }).join("");
+
+      var actionsHtml = '<div class="pk-actions">' +
+        '<button type="button" class="reroll-btn" data-reroll="1"' + (rr <= 0 ? " disabled" : "") + ">Relancer [R] (" + rr + ")</button>" +
+        (me && me[7] > 1 ? '<span class="pend-pill">Choix restants : +' + (me[7] - 1) + "</span>" : "") +
+      "</div>";
+
+      pk.innerHTML = '<div class="pk-cards">' + cardsHtml + "</div>" + actionsHtml;
     } else {
       pk.innerHTML = "";
       pk.style.display = "none";
     }
+  }
+
+  // --- Onglet Profil & Maîtrise des classes ---
+  function openProfile(App) {
+    var u = App.user;
+    var classes = App.ency.classes || [];
+    var body = "";
+
+    if (!u) {
+      body = '<div class="promo-box miss">Tu joues actuellement en mode invité. Connecte-toi ou crée un compte sur l’accueil pour enregistrer tes statistiques et débloquer la maîtrise des 10 classes.</div>';
+    } else {
+      var winRate = u.games > 0 ? Math.round((u.wins / u.games) * 100) : 0;
+      var bestTimeTxt = u.bestTime !== null ? App.fmt(u.bestTime) : "—";
+
+      body += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">' +
+        '<div><b style="font-size:1rem;color:#ffd166">' + esc(u.username) + "</b> " + rankBadge(App, u.rank) + "</div>" +
+        '<span style="font-size:.75rem;color:var(--muted)">Taux de victoire : <b style="color:var(--green)">' + winRate + " %</b></span>" +
+      "</div>";
+
+      body += '<div class="stats">' +
+        "<div><b>" + u.games + "</b><small>PARTIES</small></div>" +
+        "<div><b>" + u.wins + "</b><small>VICTOIRES V50</small></div>" +
+        "<div><b>Vague " + u.bestWave + "</b><small>RECORD VAGUE</small></div>" +
+        "<div><b>" + bestTimeTxt + "</b><small>MEILLEUR CHRONO</small></div>" +
+      "</div>";
+
+      body += '<div class="stats">' +
+        "<div><b>" + u.kills + "</b><small>ÉLIMINATIONS</small></div>" +
+        "<div><b>" + (u.totalDmg || 0).toLocaleString("fr-FR") + "</b><small>DÉGÂTS TOTAUX</small></div>" +
+        "<div><b>" + (u.totalRevives || 0) + "</b><small>RÉANIMATIONS</small></div>" +
+        "<div><b>" + (u.totalGems || 0) + "</b><small>GEMMES</small></div>" +
+      "</div>";
+
+      body += '<h4 style="margin:6px 0 2px;color:var(--gold);font-family:Georgia,serif;text-transform:uppercase;font-size:.82rem">Maîtrise des classes</h4>';
+      body += '<div class="ency-grid">' + classes.map(function (c) {
+        var cm = (u.mastery && u.mastery[c.id]) || { games: 0, wins: 0, kills: 0, dmg: 0, bestWave: 0 };
+        var m = getMasteryInfo(cm);
+        return '<div class="mast-card' + (m.isMax ? " mastered" : "") + '">' +
+          '<div class="mast-head">' +
+            '<div class="mast-left"><img class="skin-img" style="width:30px;height:30px" src="' + Sprites.getSkinDataUrl(c.id, c.id) + '" alt=""><div><b style="font-size:.78rem">' + esc(c.name) + '</b><div style="font-size:.64rem;color:var(--muted)">' + esc(c.passive) + "</div></div></div>" +
+            '<span class="mast-tier" style="color:' + m.tier.col + '">' + esc(m.tier.name) + "</span>" +
+          "</div>" +
+          '<div class="mast-bar"><div class="mast-fill" style="width:' + m.pct + "%;background:" + m.tier.col + '"></div></div>' +
+          '<div class="mast-meta"><span>Parties : <b>' + cm.games + "</b> · Vict. : <b>" + cm.wins + "</b></span><span>Kills : <b>" + cm.kills + "</b> · Max V." + cm.bestWave + "</span></div>" +
+        "</div>";
+      }).join("") + "</div>";
+    }
+
+    subModal.style.display = "flex";
+    subModal.innerHTML = '<div class="modal-box">' +
+      '<div class="modal-head"><button class="back" id="closeSub">← Fermer</button><h3>Profil &amp; Maîtrise</h3><span></span></div>' +
+      body +
+    "</div>";
+    document.getElementById("closeSub").onclick = function () { subModal.style.display = "none"; };
   }
 
   function openLeaderboard(App, tabN) {
@@ -340,6 +540,7 @@ window.UI = (function () {
       { id: "upgrades", lbl: "Bonus (17)" },
       { id: "combos", lbl: "Combos & Fusions" },
       { id: "enemies", lbl: "Monstres & Boss" },
+      { id: "themes", lbl: "Zones (5)" },
       { id: "waves", lbl: "Vagues (1-50)" }
     ].map(function (t) {
       return '<button type="button" class="' + (encyTab === t.id ? "act" : "") + '" data-t="' + t.id + '">' + t.lbl + "</button>";
@@ -361,15 +562,19 @@ window.UI = (function () {
       var sHtml = (E.super_combos || []).map(function (s) {
         return '<div class="e-card sup"><b>✦ ' + esc(s.name) + "</b><span>Fusion : " + esc(s.req.join(" + ")) + "</span><em>" + esc(s.desc) + "</em></div>";
       }).join("");
-      body = '<div class="ency-grid">' + cHtml + "</div><div class=\"ency-grid\">" + sHtml + "</div>";
+      body = '<div class="ency-grid">' + cHtml + '</div><div class="ency-grid">' + sHtml + "</div>";
     } else if (encyTab === "enemies") {
       var mHtml = (E.enemies || []).map(function (m) {
         return '<div class="e-card"><b>' + esc(m.name) + " (Dès vague " + m.waveMin + ")</b><em>" + esc(m.role) + "</em></div>";
       }).join("");
       var bHtml = (E.bosses || []).map(function (b) {
-        return '<div class="e-card sup"><b>BOSS : ' + esc(b.name) + " (" + esc(b.wave) + ")</b><em>" + esc(b.role) + "</em></div>";
+        return '<div class="e-card sup"><b>BOSS : ' + esc(b.name) + " (" + b.wave + ")</b><em>" + esc(b.role) + "</em></div>";
       }).join("");
       body = '<div class="ency-grid">' + bHtml + mHtml + "</div>";
+    } else if (encyTab === "themes") {
+      body = '<div class="ency-grid">' + (E.themes || []).map(function (t) {
+        return '<div class="e-card" style="border-color:' + t.accent + '"><b style="color:' + t.accent + '">' + esc(t.name) + " (Vagues " + esc(t.waves) + ")</b><em>Boss associé : " + esc(t.boss) + "</em></div>";
+      }).join("") + "</div>";
     } else if (encyTab === "waves") {
       var wRows = (E.waves || []).map(function (w) {
         return "<tr><td><b>Vague " + w.wave + "</b></td><td>" + (w.boss ? '<b style="color:#e05656">' + esc(w.boss) + "</b>" : "—") + "</td><td>" + w.baseCount + "</td><td>×" + w.hpMult + '</td><td style="text-align:left;white-space:normal">' + esc(w.enemies.join(", ")) + "</td></tr>";
@@ -391,10 +596,11 @@ window.UI = (function () {
 
   function updateFromState(App, d) {
     var playing = d.st === "play";
-    hudBtns.style.display = playing ? "flex" : "none";
-    invBar.style.display = playing ? "flex" : "none";
+    setSideHudsVisible(playing);
+
     if (playing) {
-      renderInventory(App, d);
+      renderLeftHud(App, d);
+      renderRightHud(App, d);
       if (App.tabHeld) updateTabModal(App);
     } else if (App.tabHeld) {
       App.tabHeld = false;
@@ -420,11 +626,12 @@ window.UI = (function () {
         promo +
         '<div class="stats"><div><b>Vague ' + d.wv + "/50</b><small>ATTEINTE</small></div><div><b>" + App.fmt(d.tm) + "</b><small>TEMPS</small></div><div><b>Niv. " + d.l + "</b><small>ESCOUADE</small></div><div><b>" + d.k + "</b><small>ÉLIMINÉS</small></div></div>" +
         buildStatsTable(App, d, false) +
-        '<div class="row"><button class="back" id="endHome">← Accueil</button><button id="endLB">Classement ' + d.n + "J</button>" +
+        '<div class="row"><button class="back" id="endHome">← Accueil</button><button id="endProfile">Profil</button><button id="endLB">Classement ' + d.n + "J</button>" +
         (isHost ? '<button class="main" id="rs">Rejouer</button>' : '<span style="color:var(--muted);font-size:.76rem">Seul l’hôte peut relancer</span>') +
         "</div></div>",
         function () {
           document.getElementById("endHome").onclick = function () { App.leaveRoom(); };
+          document.getElementById("endProfile").onclick = function () { openProfile(App); };
           document.getElementById("endLB").onclick = function () { openLeaderboard(App, d.n); };
           var rs = document.getElementById("rs");
           if (rs) rs.onclick = function () { App.send({ t: "restart" }); };
@@ -448,8 +655,27 @@ window.UI = (function () {
   }
 
   pk.onclick = function (e) {
-    var b = e.target.closest("button");
-    if (b && window.App) window.App.send({ t: "pick", k: +b.dataset.i });
+    if (!window.App) return;
+    var rrBtn = e.target.closest("[data-reroll]");
+    if (rrBtn && !rrBtn.disabled) {
+      window.App.send({ t: "reroll" });
+      return;
+    }
+    var b = e.target.closest("[data-i]");
+    if (b) window.App.send({ t: "pick", k: +b.dataset.i });
+  };
+
+  leftHud.onclick = function (e) {
+    if (!window.App) return;
+    var b = e.target.closest("[data-act]");
+    if (!b) return;
+    var act = b.dataset.act;
+    if (act === "pause") window.App.send({ t: "pause" });
+    else if (act === "dash") window.App.send({ t: "dash" });
+    else if (act === "tab") {
+      window.App.tabHeld = !window.App.tabHeld;
+      updateTabModal(window.App);
+    }
   };
 
   return {

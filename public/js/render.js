@@ -2,7 +2,7 @@ window.Render = (function () {
   var W = 800, H = 560, TAU = Math.PI * 2;
   var FONT = '"Trebuchet MS","Segoe UI",sans-serif';
   var SERIF = 'Georgia,"Times New Roman",serif';
-  var BG = null;
+  var lastThemeId = -1;
 
   var FX = { PA: [], DEC: [], RINGS: [], FLOATS: [], GHOSTS: [], TR: [[], [], [], [], [], []], shake: 0, flashE: {} };
 
@@ -22,12 +22,13 @@ window.Render = (function () {
     }
     if (stain) {
       if (FX.DEC.length >= 100) FX.DEC.shift();
-      FX.DEC.push({ x: x + (Math.random() - 0.5) * 8, y: y + (Math.random() - 0.5) * 8, r: 4 + Math.random() * 7, c: c, a: 0.26 });
+      FX.DEC.push({ x: x + (Math.random() - 0.5) * 8, y: y + (Math.random() - 0.5) * 8, r: 4 + Math.random() * 7, c: c, a: 0.24 });
     }
   }
   function resetFx() {
     FX.PA = []; FX.DEC = []; FX.RINGS = []; FX.FLOATS = []; FX.GHOSTS = [];
     FX.TR = [[], [], [], [], [], []]; FX.shake = 0; FX.flashE = {};
+    lastThemeId = -1;
   }
 
   function rr(ctx, x, y, w, h, r) {
@@ -49,7 +50,7 @@ window.Render = (function () {
 
     ctx.save();
     ctx.translate(x, y - Math.abs(step) * 1.8);
-    if (k === 5) ctx.globalAlpha = 0.75;
+    if (k === 5) ctx.globalAlpha = 0.78;
 
     ctx.fillStyle = k === 6 ? (Math.floor(tt * 14) % 2 ? "#ff9f1c" : "#e04819") : (hit ? "#fff" : (slowed ? "#5bc0eb" : c));
     ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
@@ -113,7 +114,6 @@ window.Render = (function () {
       ctx.beginPath(); ctx.arc(T[k].x, T[k].y, 4.2 * f, 0, TAU); ctx.fill();
     }
 
-    // Arme
     var kick = (v.recoil || 0) * 4.5;
     ctx.save();
     ctx.translate(v.x, v.y - Math.abs(bob)); ctx.rotate(aimAngle);
@@ -121,7 +121,6 @@ window.Render = (function () {
     rr(ctx, 4 - kick, -3, 13, 6, 2); ctx.fill(); ctx.stroke();
     ctx.restore();
 
-    // Corps & classe
     ctx.save();
     ctx.translate(v.x, v.y - Math.abs(bob));
     ctx.globalAlpha = p[6] && Math.floor(tt * 20) % 2 ? 0.45 : 1;
@@ -138,7 +137,6 @@ window.Render = (function () {
     ctx.restore();
     ctx.globalAlpha = 1;
 
-    // Drone autonome (Ingénieur)
     if (drones > 0) {
       var dy = v.y - 20 + Math.sin(tt * 6 + i) * 2.5;
       ctx.fillStyle = "#e5a93c"; ctx.strokeStyle = "#120d0a"; ctx.lineWidth = 1.8;
@@ -146,7 +144,6 @@ window.Render = (function () {
       ctx.fillStyle = "#66f7ff"; ctx.beginPath(); ctx.arc(v.x, dy, 2, 0, TAU); ctx.fill();
     }
 
-    // Lames orbitales
     if (p[10]) {
       var ospd = p[14] || 1;
       for (var q = 0; q < p[10]; q++) {
@@ -163,11 +160,19 @@ window.Render = (function () {
   }
 
   function drawFrame(ctx, App, tt) {
-    if (!BG) BG = Sprites.createArenaBg(W, H);
     var S = App.S;
+    var themes = (App.ency && App.ency.themes) || [];
+    var thIdx = S ? (S.th || 0) : 0;
+    var curTheme = themes[thIdx] || null;
+    if (S && S.st === "play" && lastThemeId !== -1 && lastThemeId !== thIdx && curTheme) {
+      UI.toast("Nouvelle zone : " + curTheme.name, curTheme.accent || "#ffd166");
+    }
+    if (S && S.st === "play") lastThemeId = thIdx;
+
+    var bgImg = Sprites.createArenaBg(W, H, curTheme);
     ctx.save();
     if (FX.shake > 0 && !(S && S.pz)) ctx.translate((Math.random() - 0.5) * FX.shake, (Math.random() - 0.5) * FX.shake);
-    ctx.drawImage(BG, 0, 0);
+    ctx.drawImage(bgImg, 0, 0);
 
     FX.DEC.forEach(function (d) { ctx.globalAlpha = d.a; ctx.fillStyle = d.c; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill(); });
     ctx.globalAlpha = 1;
@@ -192,6 +197,7 @@ window.Render = (function () {
         drawEnemy(ctx, e, ang, tt, S.pz);
       });
 
+      // Projectiles joueurs
       S.B.forEach(function (b) {
         ctx.strokeStyle = "#120d0a"; ctx.lineWidth = b[5] ? 6.5 : 5; ctx.lineCap = "round";
         ctx.beginPath(); ctx.moveTo(b[0] - b[2] * 0.034, b[1] - b[3] * 0.034); ctx.lineTo(b[0], b[1]); ctx.stroke();
@@ -199,9 +205,19 @@ window.Render = (function () {
         ctx.beginPath(); ctx.moveTo(b[0] - b[2] * 0.034, b[1] - b[3] * 0.034); ctx.lineTo(b[0], b[1]); ctx.stroke();
       });
 
+      // Projectiles ennemis haute visibilité (halo + contour lumineux + cœur blanc)
+      var pulse = 1 + Math.sin(tt * 16) * 0.14;
       S.X.forEach(function (xb) {
-        ctx.fillStyle = "#d94e4e"; ctx.strokeStyle = "#120d0a"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(xb[0], xb[1], 4.5, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "rgba(255, 46, 85, 0.34)";
+        ctx.beginPath(); ctx.arc(xb[0], xb[1], 10.5 * pulse, 0, TAU); ctx.fill();
+
+        ctx.fillStyle = "#ff2e55";
+        ctx.strokeStyle = "#fff3b0";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(xb[0], xb[1], 5.6, 0, TAU); ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.arc(xb[0], xb[1], 2.3, 0, TAU); ctx.fill();
       });
 
       (S.lks || []).forEach(function (pair) {
@@ -231,30 +247,18 @@ window.Render = (function () {
     }
     ctx.restore();
 
-    // HUD
+    // HUD minimaliste sur le canvas (barre d'XP, vague et boss uniquement)
     if (S && S.st !== "lobby") {
-      var me = S.p[S.me];
       ctx.fillStyle = "#120d0a"; ctx.fillRect(0, 0, W, 8);
       ctx.fillStyle = "#3fa796"; ctx.fillRect(0, 0, W * Math.min(1, S.xp / S.nd), 7);
 
-      S.p.forEach(function (p, i) {
-        var col = i % 2, row = Math.floor(i / 2), x = col ? W - 166 : 12, y = 14 + row * 22;
-        var hp = Math.max(0, p[2] / p[3]);
-        rr(ctx, x, y, 154, 18, 4); ctx.fillStyle = "#161310"; ctx.fill();
-        if (hp > 0) { rr(ctx, x + 2, y + 2, Math.max(4, 150 * hp), 14, 2); ctx.fillStyle = p[4] ? "#5c5349" : Sprites.CO[i % 6]; ctx.fill(); }
-        rr(ctx, x, y, 154, 18, 4); ctx.strokeStyle = i === S.me ? "#e5a93c" : "#463b30"; ctx.lineWidth = i === S.me ? 2 : 1.5; ctx.stroke();
-        ctx.fillStyle = "#f0e6d6"; ctx.font = "bold 10px " + FONT; ctx.textAlign = "center";
-        ctx.fillText(App.pName(i) + (p[4] ? " · À TERRE" : "  " + Math.ceil(p[2]) + "/" + p[3]), x + 77, y + 12);
-      });
-
-      ctx.fillStyle = "#e5a93c"; ctx.font = "bold 22px " + SERIF; ctx.textAlign = "center";
-      ctx.fillText("VAGUE " + S.wv + " / " + (S.mw || 50), W / 2, 31);
+      ctx.fillStyle = "#e5a93c"; ctx.font = "bold 20px " + SERIF; ctx.textAlign = "center";
+      ctx.fillText("VAGUE " + S.wv + " / " + (S.mw || 50), W / 2, 29);
       ctx.fillStyle = "#cbbba6"; ctx.font = "bold 11px " + FONT;
-      var myKills = me ? (me[19] || 0) : 0;
-      ctx.fillText("Restants : " + S.rem + "  ·  Niv. " + S.l + "  ·  Kills : " + S.k + " (Toi : " + myKills + ")", W / 2, 47);
+      ctx.fillText("Restants : " + S.rem + "  ·  Niveau escouade : " + S.l, W / 2, 44);
 
       if (S.bn) {
-        var bw = 340, bx = (W - bw) / 2, by = 62;
+        var bw = 340, bx = (W - bw) / 2, by = 54;
         rr(ctx, bx, by, bw, 16, 4); ctx.fillStyle = "#161310"; ctx.fill();
         if (S.bh > 0) { rr(ctx, bx + 2, by + 2, Math.max(4, (bw - 4) * S.bh / 100), 12, 2); ctx.fillStyle = "#d94e4e"; ctx.fill(); }
         rr(ctx, bx, by, bw, 16, 4); ctx.strokeStyle = "#e5a93c"; ctx.lineWidth = 2; ctx.stroke();
@@ -262,19 +266,12 @@ window.Render = (function () {
         ctx.fillText(S.bn.toUpperCase() + " — " + S.bh + "%", W / 2, by + 12);
       }
 
-      var ranks = App.ency.ranks || [];
-      var curRk = ranks[S.myRank || 0] || { name: "Bronze", target: 1440 };
-      var nextRk = ranks[Math.min(ranks.length - 1, (S.myRank || 0) + 1)] || curRk;
-      ctx.textAlign = "right"; ctx.font = "bold 10.5px " + FONT;
-      ctx.fillStyle = S.tm <= nextRk.target ? "rgba(240,230,214,.65)" : "rgba(224,86,86,.8)";
-      ctx.fillText("SALLE " + S.code + " · " + App.fmt(S.tm) + " / " + App.fmt(nextRk.target) + " (" + curRk.name + ")", W - 14, H - 44);
-
       if (S.pz && !S.mpz) {
-        ctx.fillStyle = "rgba(10,8,6,.74)"; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = "rgba(10,8,6,.76)"; ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = "#e5a93c"; ctx.font = "bold 26px " + SERIF; ctx.textAlign = "center";
-        ctx.fillText("PAUSE — NIVEAU " + S.l, W / 2, H / 2 - 74);
+        ctx.fillText("PAUSE — NIVEAU " + S.l, W / 2, H / 2 - 84);
         ctx.fillStyle = "#f0e6d6"; ctx.font = "bold 14px " + FONT;
-        ctx.fillText((S.ch && S.ch.length) ? "Choisis ton amélioration (1/& , 2/é , 3/\")" : "En attente de l'escouade…", W / 2, H / 2 - 46);
+        ctx.fillText((S.ch && S.ch.length) ? "Choisis ton amélioration (1/& , 2/é , 3/\") ou relance [R]" : "En attente de l’escouade…", W / 2, H / 2 - 56);
       }
     }
   }

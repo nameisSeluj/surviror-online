@@ -71,6 +71,10 @@
           UI.clearKeys(); UI.showHome(App, d.m);
           return;
         }
+        if (d.t === "user" && d.user) {
+          App.user = d.user;
+          return;
+        }
         onSnapshot(d);
       };
       ws.onclose = function () {
@@ -156,6 +160,7 @@
     keys[e.key] = 1;
     if (e.key === " ") e.preventDefault();
     if (App.S && App.S.st === "play" && (e.key === "p" || e.key === "P")) App.send({ t: "pause" });
+    if (App.S && App.S.ch && (e.key === "r" || e.key === "R") && (App.S.rr || 0) > 0) App.send({ t: "reroll" });
     var slot = pickMap[e.code] !== undefined ? pickMap[e.code] : pickMap[e.key];
     if (App.S && App.S.ch && slot !== undefined) App.send({ t: "pick", k: slot });
     if (e.key === " " || e.key === "Shift") App.send({ t: "dash" });
@@ -174,8 +179,6 @@
   window.addEventListener("pointermove", function (e) { if (ptr) ptr = canvasPos(e); });
   window.addEventListener("pointerup", function () { ptr = null; });
 
-  document.getElementById("pauseBtn").onclick = function () { App.send({ t: "pause" }); };
-  document.getElementById("tabBtn").onclick = function () { App.tabHeld = !App.tabHeld; UI.updateTabModal(App); };
   document.getElementById("dash").addEventListener("pointerdown", function (e) { e.preventDefault(); App.send({ t: "dash" }); });
 
   setInterval(function () {

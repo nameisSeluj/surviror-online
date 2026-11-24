@@ -10,7 +10,6 @@ window.Sprites = (function () {
     return "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' + inner + "</svg>");
   }
 
-  // Icônes des 17 bonus
   var UP_IMGS = [
     svgUri('<path d="M24 4L28 8L13 23L9 19Z" fill="#e5a93c"/><path d="M7 21L11 25L6 28L4 26Z" fill="#d94e4e"/>'),
     svgUri('<path d="M18 3L8 17h7l-2 12 11-14h-7z" fill="#ffd166" stroke="#8c5a19" stroke-width="1.5"/>'),
@@ -31,7 +30,6 @@ window.Sprites = (function () {
     svgUri('<path d="M4 16h18M17 10l8 6-8 6" fill="none" stroke="#ffd166" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><line x1="4" y1="11" x2="11" y2="11" stroke="#9be8d8" stroke-width="2"/>')
   ];
 
-  // Détails visuels des 10 classes (0..7 + 8 Ingénieur + 9 Vampire)
   function drawSkinDetail(g, skin, aimAngle) {
     g.save();
     if (skin === 1) {
@@ -70,13 +68,11 @@ window.Sprites = (function () {
       var ex = Math.cos(aimAngle) * 4, ey = Math.sin(aimAngle) * 4;
       g.fillStyle = "#ff6b6b"; g.beginPath(); g.arc(ex - 2, ey, 1.7, 0, TAU); g.arc(ex + 2, ey, 1.7, 0, TAU); g.fill();
     } else if (skin === 8) {
-      // Ingénieur : casque jaune + lunettes ambrées
       g.fillStyle = "#e5a93c"; g.strokeStyle = "#120d0a"; g.lineWidth = 1.6;
       g.beginPath(); g.arc(0, -2, 11.2, Math.PI, TAU); g.closePath(); g.fill(); g.stroke();
       g.fillStyle = "#ff9f1c"; g.fillRect(-7, -5, 6, 4); g.fillRect(1, -5, 6, 4);
       g.strokeStyle = "#120d0a"; g.strokeRect(-7, -5, 6, 4); g.strokeRect(1, -5, 6, 4);
     } else if (skin === 9) {
-      // Vampire : col de cape bordeaux + crocs
       g.fillStyle = "#7a1c28"; g.strokeStyle = "#120d0a"; g.lineWidth = 1.5;
       g.beginPath(); g.moveTo(-12, -2); g.lineTo(-15, -11); g.lineTo(-6, -7); g.lineTo(6, -7); g.lineTo(15, -11); g.lineTo(12, -2); g.closePath(); g.fill(); g.stroke();
       g.fillStyle = "#fff";
@@ -116,23 +112,44 @@ window.Sprites = (function () {
     return GEM_SPR;
   }
 
-  function createArenaBg(W, H) {
+  var BG_CACHE = {};
+  function createArenaBg(W, H, theme) {
+    var tid = theme ? theme.id : 0;
+    if (BG_CACHE[tid]) return BG_CACHE[tid];
+
+    var bgColor = (theme && theme.bg) || "#221e1a";
+    var rgb = (theme && theme.tile) || [35, 31, 27];
+    var borderCol = (theme && theme.border) || "#463b30";
+    var accentCol = (theme && theme.accent) || "#e5a93c";
+
     var bg = document.createElement("canvas"); bg.width = W; bg.height = H;
     var g = bg.getContext("2d");
-    g.fillStyle = "#221e1a"; g.fillRect(0, 0, W, H);
+    g.fillStyle = bgColor; g.fillRect(0, 0, W, H);
     var ts = 48;
     for (var y = 0; y < H; y += ts) {
       for (var x = 0; x < W; x += ts) {
-        var v = ((x * 17 + y * 31) % 11) - 5;
-        g.fillStyle = "rgb(" + (35 + v) + "," + (31 + v) + "," + (27 + v) + ")";
+        var v = ((x * 17 + y * 31 + tid * 13) % 11) - 5;
+        g.fillStyle = "rgb(" + Math.max(8, rgb[0] + v) + "," + Math.max(8, rgb[1] + v) + "," + Math.max(8, rgb[2] + v) + ")";
         g.fillRect(x + 1, y + 1, ts - 2, ts - 2);
       }
     }
+
+    // Motif central discret assorti au thème
+    g.save();
+    g.strokeStyle = accentCol;
+    g.globalAlpha = 0.12;
+    g.lineWidth = 2;
+    g.beginPath(); g.arc(W / 2, H / 2, 110, 0, TAU); g.stroke();
+    g.beginPath(); g.arc(W / 2, H / 2, 185, 0, TAU); g.stroke();
+    g.restore();
+
     var vg = g.createRadialGradient(W / 2, H / 2, W * 0.25, W / 2, H / 2, W * 0.68);
-    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(8,6,5,.55)");
+    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(8,6,5,.58)");
     g.fillStyle = vg; g.fillRect(0, 0, W, H);
     g.strokeStyle = "#120f0c"; g.lineWidth = 6; g.strokeRect(3, 3, W - 6, H - 6);
-    g.strokeStyle = "#463b30"; g.lineWidth = 2; g.strokeRect(6, 6, W - 12, H - 12);
+    g.strokeStyle = borderCol; g.lineWidth = 2.5; g.strokeRect(6, 6, W - 12, H - 12);
+
+    BG_CACHE[tid] = bg;
     return bg;
   }
 

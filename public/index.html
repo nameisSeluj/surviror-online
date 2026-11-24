@@ -7,20 +7,22 @@
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <div class="wrap">
-    <canvas id="c" width="800" height="560"></canvas>
-    <div id="invBar"></div>
-    <div id="pk"></div>
-    <div id="tt"></div>
-    <div class="hud-btns" id="hudBtns">
-      <button id="tabBtn" type="button">Stats [Tab]</button>
-      <button id="pauseBtn" type="button">Pause [P]</button>
+  <div class="game-shell">
+    <aside id="leftHud" class="side-hud"></aside>
+
+    <div class="wrap">
+      <canvas id="c" width="800" height="560"></canvas>
+      <div id="pk"></div>
+      <div id="tt"></div>
+      <button id="dash" aria-label="Esquive">DASH</button>
+      <div id="ov"></div>
+      <div id="tabModal"></div>
+      <div id="subModal" class="modal-overlay"></div>
     </div>
-    <button id="dash" aria-label="Esquive">DASH</button>
-    <div id="ov"></div>
-    <div id="tabModal"></div>
-    <div id="subModal" class="modal-overlay"></div>
+
+    <aside id="rightHud" class="side-hud"></aside>
   </div>
+
   <script src="/js/sprites.js"></script>
   <script src="/js/render.js"></script>
   <script src="/js/ui.js"></script>
