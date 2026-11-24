@@ -2,13 +2,22 @@ const {
   MAX_COMBOS, MAX_SUPER, UPGRADES, COMBOS, findSuper, rollRarity
 } = require("./constants");
 
-function offerUpgrades(p, lvl) {
-  const pool = UPGRADES.map((_, idx) => idx);
+function offerUpgrades(p, lvl, excludeIds = []) {
+  let pool = UPGRADES.map((_, idx) => idx).filter(id => !excludeIds.includes(id));
+  if (pool.length < 3) pool = UPGRADES.map((_, idx) => idx);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
   p.ch = pool.slice(0, 3).map(u => ({ u, r: rollRarity(lvl) }));
+}
+
+function rerollUpgrades(p, lvl) {
+  if (!p.ch || (p.rerolls || 0) <= 0) return false;
+  const prev = p.ch.map(c => c.u);
+  p.rerolls--;
+  offerUpgrades(p, lvl, prev);
+  return true;
 }
 
 function getComboHint(p, uIdx) {
@@ -79,4 +88,4 @@ function applyUpgrade(r, p, choice) {
   }
 }
 
-module.exports = { offerUpgrades, getComboHint, applyUpgrade };
+module.exports = { offerUpgrades, rerollUpgrades, getComboHint, applyUpgrade };

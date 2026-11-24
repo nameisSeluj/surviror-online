@@ -7,6 +7,27 @@ const dist2 = (ax, ay, bx, by) => {
   return dx * dx + dy * dy;
 };
 
+function distToSegment2(ax, ay, bx, by, px, py) {
+  const vx = bx - ax;
+  const vy = by - ay;
+  const wx = px - ax;
+  const wy = py - ay;
+  const c1 = vx * wx + vy * wy;
+  if (c1 <= 0) return wx * wx + wy * wy;
+  const c2 = vx * vx + vy * vy;
+  if (c2 <= c1) {
+    const dx = px - bx;
+    const dy = py - by;
+    return dx * dx + dy * dy;
+  }
+  const t = c1 / c2;
+  const projX = ax + t * vx;
+  const projY = ay + t * vy;
+  const dx = px - projX;
+  const dy = py - projY;
+  return dx * dx + dy * dy;
+}
+
 const bossHpScale = w => (1 + (Math.max(1, w) - 1) * 0.09) * Math.pow(1.55, Math.floor((Math.max(1, w) - 1) / 5));
 const bossDmgScale = w => (1 + (Math.max(1, w) - 1) * 0.06) * Math.pow(1.24, Math.floor((Math.max(1, w) - 1) / 5));
 const mobHpScale = w => (1 + (Math.max(1, w) - 1) * 0.038) * Math.pow(1.34, Math.floor((Math.max(1, w) - 1) / 5));
@@ -38,12 +59,18 @@ function spawnBoss(r, forcedType) {
     id: ++r.eid, k: 4, bk: bType, r: 30, xp: 15 + Math.floor(w / 2),
     d: 26 * nDmg * scDmg, bd: 13 * nDmg * scDmg,
     sh: 2.0, sp2: 3.2, sp3: 5.5, dash: 0, chain: 0, windup: 0, spiral: 0,
-    vx: 0, vy: 0, slow: 0, slowVal: 0
+    healCount: 0, vx: 0, vy: 0, slow: 0, slowVal: 0
   };
 
   if (bType === 0) { e.hp = (145 + w * 24) * nHp * scHp; e.sp = 38; e.r = 32; e.d = 30 * nDmg * scDmg; }
   else if (bType === 1) { e.hp = (120 + w * 20) * nHp * scHp; e.sp = 64; e.r = 26; e.d = 24 * nDmg * scDmg; }
-  else if (bType === 2) { e.hp = (130 + w * 21) * nHp * scHp; e.sp = 34; e.r = 28; }
+  else if (bType === 2) {
+    // Arpenteur (vague 15) : dégâts par munition fortement réduits
+    e.hp = (130 + w * 21) * nHp * scHp;
+    e.sp = 34;
+    e.r = 28;
+    e.bd = 7.5 * nDmg * scDmg;
+  }
   else if (bType === 3) { e.hp = (160 + w * 25) * nHp * scHp; e.sp = 30; e.r = 34; }
   else { e.hp = (200 + w * 30) * nHp * scHp; e.sp = 42; e.r = 36; e.d = 34 * nDmg * scDmg; e.bd = 15 * nDmg * scDmg; }
 
@@ -125,8 +152,8 @@ function hitEnemy(r, e, dmg, ownerIdx, isCrit, fromExplosion = false) {
   if (e.hp <= 0 && !e.dead) {
     e.dead = true;
     owner.st.kills++;
-    if (owner.S.soul && owner.st.kills % 8 === 0) {
-      owner.hp = Math.min(owner.max, owner.hp + 1);
+    if (owner.S.soul && owner.st.kills % 6 === 0) {
+      owner.hp = Math.min(owner.max, owner.hp + 2);
     }
     if (!fromExplosion && owner.S.corpseExp > 0) {
       triggerCorpseExplosion(r, e.x, e.y, owner);
@@ -237,6 +264,7 @@ function updateEnemies(r, al, pRate, damagePlayer) {
           }
         }
       } else if (e.bk === 2) {
+        // Arpenteur (vague 15)
         const v = td < 220 ? 0 : e.sp * slowFactor;
         e.x += (t.x - e.x) / td * v * DT;
         e.y += (t.y - e.y) / td * v * DT;
@@ -244,43 +272,44 @@ function updateEnemies(r, al, pRate, damagePlayer) {
           const pd2 = dist2(e.x, e.y, p.x, p.y);
           if (pd2 > 45 * 45 && pd2 < 310 * 310) {
             const pd = Math.sqrt(pd2);
-            const pull = (enraged ? 52 : 34) * DT;
+            const pull = (enraged ? 46 : 30) * DT;
             p.x = Math.max(p.r, Math.min(W - p.r, p.x + (e.x - p.x) / pd * pull));
             p.y = Math.max(p.r, Math.min(H - p.r, p.y + (e.y - p.y) / pd * pull));
           }
         }
         e.sp2 -= DT * rMult;
         if (e.sp2 <= 0) {
-          e.sp2 = 4.2; e.x = rnd(80, W - 80); e.y = rnd(80, H - 80);
+          e.sp2 = 4.4; e.x = rnd(80, W - 80); e.y = rnd(80, H - 80);
           r.ev.push([Math.round(e.x), Math.round(e.y), 2]);
-          const cnt = enraged ? 12 : 8;
+          const cnt = enraged ? 10 : 8;
           for (let i = 0; i < cnt; i++) {
             const a = i * (TAU / cnt);
-            shootEnemyBullet(r, e.x, e.y, Math.cos(a) * 185, Math.sin(a) * 185, e.bd, 3.4);
+            shootEnemyBullet(r, e.x, e.y, Math.cos(a) * 180, Math.sin(a) * 180, e.bd, 3.2);
           }
         }
         e.sh -= DT * rMult;
         if (e.sh <= 0) {
-          e.sh = 1.7;
+          e.sh = 1.9;
           const ba = Math.atan2(t.y - e.y, t.x - e.x);
-          for (let i = -2; i <= 2; i++) shootEnemyBullet(r, e.x, e.y, Math.cos(ba + i * 0.22) * 215, Math.sin(ba + i * 0.22) * 215, e.bd, 3.2);
+          for (let i = -2; i <= 2; i++) shootEnemyBullet(r, e.x, e.y, Math.cos(ba + i * 0.22) * 205, Math.sin(ba + i * 0.22) * 205, e.bd, 3.1);
         }
         e.sp3 -= DT * rMult;
-        if (e.sp3 <= 0) { e.sp3 = 4.8; e.spiral = 1.2; }
+        if (e.sp3 <= 0) { e.sp3 = 5.2; e.spiral = 1.1; }
         if (e.spiral > 0) {
           e.spiral -= DT;
-          if (Math.floor(e.spiral * 15) !== Math.floor((e.spiral + DT) * 15)) {
-            const a = r.t * 6.5;
-            shootEnemyBullet(r, e.x, e.y, Math.cos(a) * 195, Math.sin(a) * 195, e.bd, 3.2);
-            shootEnemyBullet(r, e.x, e.y, Math.cos(a + 3.14) * 195, Math.sin(a + 3.14) * 195, e.bd, 3.2);
+          if (Math.floor(e.spiral * 13) !== Math.floor((e.spiral + DT) * 13)) {
+            const a = r.t * 6.0;
+            shootEnemyBullet(r, e.x, e.y, Math.cos(a) * 185, Math.sin(a) * 185, e.bd * 0.75, 3.0);
+            shootEnemyBullet(r, e.x, e.y, Math.cos(a + 3.14) * 185, Math.sin(a + 3.14) * 185, e.bd * 0.75, 3.0);
           }
         }
       } else if (e.bk === 3) {
+        // Matriarche (vague 20) : soin fortement réduit (0,5 %, max 4 fois, si > 6 sbires)
         e.x += (t.x - e.x) / td * e.sp * slowFactor * DT;
         e.y += (t.y - e.y) / td * e.sp * slowFactor * DT;
         e.sp2 -= DT * rMult;
         if (e.sp2 <= 0 && r.E.length < 55) {
-          e.sp2 = 3.8;
+          e.sp2 = 4.2;
           const scHp = bossHpScale(r.wave), scDmg = bossDmgScale(r.wave), nHp = 1 + (pl.length - 1) * 0.55, nDmg = 1 + (pl.length - 1) * 0.18;
           for (let i = 0; i < 3; i++) {
             const sa = i * 2.09 + r.t;
@@ -289,7 +318,10 @@ function updateEnemies(r, al, pRate, damagePlayer) {
             const m = { id: ++r.eid, k: 1, r: 8, hp: (1.8 + r.wave * 0.2) * nHp * scHp, sp: 104, xp: 1, d: 8 * nDmg * scDmg, x: sx, y: sy, bc: 0, slow: 0, slowVal: 0 };
             m.mh = m.hp; r.E.push(m);
           }
-          if (r.E.length > 3) e.hp = Math.min(e.mh, e.hp + e.mh * 0.02);
+          if (r.E.length > 6 && (e.healCount || 0) < 4) {
+            e.hp = Math.min(e.mh, e.hp + e.mh * 0.005);
+            e.healCount = (e.healCount || 0) + 1;
+          }
         }
         e.sh -= DT * rMult;
         if (e.sh <= 0) {
@@ -407,5 +439,5 @@ function updateEnemies(r, al, pRate, damagePlayer) {
 }
 
 module.exports = {
-  dist2, spawnBoss, spawnEnemy, explodeKamikaze, hitEnemy, triggerNova, updateEnemies
+  dist2, distToSegment2, spawnBoss, spawnEnemy, explodeKamikaze, hitEnemy, triggerNova, updateEnemies
 };

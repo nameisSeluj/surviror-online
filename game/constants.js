@@ -28,6 +28,14 @@ const RARITIES = [
   { id: 3, name: "Légendaire", col: "#ffd166", mult: 2.0 }
 ];
 
+const MAP_THEMES = [
+  { id: 0, name: "Arène de Braises", waves: "1-5 / 26-30", boss: "Colosse", bg: "#221e1a", tile: [35, 31, 27], border: "#5c4938", accent: "#e5a93c" },
+  { id: 1, name: "Canyon de Rouille", waves: "6-10 / 31-35", boss: "Traqueur", bg: "#261a16", tile: [42, 27, 22], border: "#7a3e2b", accent: "#ff7b47" },
+  { id: 2, name: "Sanctuaire Abyssal", waves: "11-15 / 36-40", boss: "Arpenteur", bg: "#141d26", tile: [20, 31, 42], border: "#2e5c7a", accent: "#5bc0eb" },
+  { id: 3, name: "Marais Toxique", waves: "16-20 / 41-45", boss: "Matriarche", bg: "#172219", tile: [23, 36, 26], border: "#3d6b47", accent: "#6ede8a" },
+  { id: 4, name: "Citadelle d'Obsidienne", waves: "21-25 / 46-50", boss: "Seigneur d'Encre", bg: "#1c1624", tile: [30, 23, 39], border: "#6b478a", accent: "#ffd166" }
+];
+
 function rollRarity(lvl) {
   const l = Math.min(25, Math.max(1, lvl));
   const leg = 4 + l * 0.30;
@@ -40,7 +48,6 @@ function rollRarity(lvl) {
   return 0;
 }
 
-// 10 classes uniques (8 d'origine + Ingénieur & Vampire)
 const CLASSES = [
   { id: 0, name: "Recrue", passive: "Polyvalent", bonus: "+10 % XP gemmes · Aimant +20 %", apply: p => { p.S.xpMult *= 1.10; p.S.magnet *= 1.20; } },
   { id: 1, name: "Chevalier", passive: "Cuirasse lourde", bonus: "+20 PV max · Armure +10 %", apply: p => { p.max += 20; p.hp = p.max; p.S.armor += 0.10; } },
@@ -49,12 +56,11 @@ const CLASSES = [
   { id: 4, name: "Mage", passive: "Arcanes instables", bonus: "Critique +12 % · Onde +15 % rayon", apply: p => { p.S.crit += 0.12; p.S.novaRad *= 1.15; } },
   { id: 5, name: "Cyber", passive: "Visée assistée", bonus: "Cadence +14 % · +1 Ricochet", apply: p => { p.S.rate *= 1.14; p.S.bounce += 1; } },
   { id: 6, name: "Couronne", passive: "Aura royale", bonus: "+0,6 PV/s · Réanimation +25 %", apply: p => { p.S.regen += 0.6; p.S.revSpd += 0.25; } },
-  { id: 7, name: "Faucheuse", passive: "Moisson d'âmes", bonus: "+1 Lame · +1 PV / 8 éliminations", apply: p => { p.S.orb += 1; p.S.soul = 1; } },
+  { id: 7, name: "Faucheuse", passive: "Moisson d'âmes", bonus: "+2 Lames rapides · Vol de vie +2 % · +2 PV / 6 kills", apply: p => { p.S.orb += 2; p.S.orbSpd *= 1.20; p.S.lifesteal += 0.02; p.S.soul = 1; } },
   { id: 8, name: "Ingénieur", passive: "Drone autonome", bonus: "+1 Drone de tir auto · Aimant +15 %", apply: p => { p.S.drone += 1; p.S.magnet *= 1.15; } },
   { id: 9, name: "Vampire", passive: "Soif écarlate", bonus: "Vol de vie +4 % · Vitesse +8 %", apply: p => { p.S.lifesteal += 0.04; p.S.speed *= 1.08; } }
 ];
 
-// 17 améliorations (13 d'origine + 4 nouveaux bonus)
 const UPGRADES = [
   {
     id: 0, short: "Dégâts",
@@ -160,7 +166,6 @@ const UPGRADES = [
   }
 ];
 
-// 10 combos standards (8 d'origine + 2 nouveaux)
 const COMBOS = [
   { id: 0, req: [0, 1], name: "Mitrailleuse lourde", desc: "Dégâts ×1,22 · Cadence ×1,22", apply: p => { p.S.dmg *= 1.22; p.S.rate *= 1.22; } },
   { id: 1, req: [2, 3], name: "Pluie d'acier", desc: "+1 projectile · +1 perforation", apply: p => { p.S.multi += 1; p.S.pierce += 1; } },
@@ -174,7 +179,6 @@ const COMBOS = [
   { id: 9, req: [15, 16], name: "Égide Balistique", desc: "Armure +12 % · Vélocité +30 % · Dégâts ×1,18", apply: p => { p.S.armor += 0.12; p.S.projSpd *= 1.30; p.S.dmg *= 1.18; } }
 ];
 
-// Archétypes permettant de générer les 45 fusions (Super-Combos) entre les 10 combos
 const SUPER_PARTS = [
   { pre: "Apocalypse", suf: "Balistique", txt: "Dégâts ×1,22 · Cadence ×1,15", apply: p => { p.S.dmg *= 1.22; p.S.rate *= 1.15; } },
   { pre: "Déluge", suf: "Perforant", txt: "+2 tirs · +1 perforation", apply: p => { p.S.multi += 2; p.S.pierce += 1; } },
@@ -224,30 +228,31 @@ const BOSSES_INFO = [
   { bk: 0, name: "Colosse", wave: "Vague 5+", role: "Salves en éventail, nova circulaire et charge enragée." },
   { bk: 1, name: "Traqueur", wave: "Vague 10+", role: "Enchaîne les ruées rapides suivies de tirs groupés." },
   { bk: 2, name: "Arpenteur", wave: "Vague 15+", role: "Attire les joueurs par gravité, se téléporte et tire en spirale." },
-  { bk: 3, name: "Matriarche", wave: "Vague 20+", role: "Invoque des nuées de sbires, se régénère et tire en croix rotative." },
+  { bk: 3, name: "Matriarche", wave: "Vague 20+", role: "Invoque des nuées de sbires, se régénère faiblement et tire en croix." },
   { bk: 4, name: "Seigneur d'Encre", wave: "Vague 25 & 50", role: "Combine téléportation, novæ massives et invocation d'élites." }
 ];
 
 const INITIAL_PATCH_NOTES = [
   {
-    version: "v1.5 — Base de données, Comptes & +2 Classes",
+    version: "v1.6 — HUD Épuré, Profil, Maps par Boss & Équilibrage",
     date_label: "Actuel",
     is_latest: 1,
     items: [
-      "Création de compte joueur et sauvegarde persistante des rangs, classements et statistiques.",
-      "Ajout de 2 nouvelles classes : Ingénieur (drone autonome) et Vampire (vol de vie).",
-      "Ajout de 4 nouveaux bonus (Vol de vie, Déflagration, Bouclier cinétique, Vélocité) et 2 combos.",
-      "Encyclopédie complète en base de données (vagues, monstres, boss, bonus, combos) et refactor modulaire."
+      "Correction du tir multiple pair (angle resserré pour toucher au centre) et des projectiles fantômes (collision par segment).",
+      "Projectiles ennemis lumineux à halo contrasté et changement automatique de map après chaque boss.",
+      "Ajout du bouton Relancer les bonus (2 relances par partie + 1 par boss vaincu).",
+      "Buff de la Faucheuse (+2 lames rapides, +2 PV / 6 kills, vol de vie +2 %), nerf du soin de la Matriarche et des dégâts de l'Arpenteur (vague 15).",
+      "Nouveau HUD externe (gauche/droite), panneau de stats modifiées en direct et onglet Profil avec maîtrise des classes."
     ]
   },
   {
-    version: "v1.4 — Ranked, Raretés & Classes Uniques",
+    version: "v1.5 — Base de données, Comptes & +2 Classes",
     date_label: "Précédent",
     is_latest: 0,
     items: [
-      "Raretés de bonus (Commun, Rare, Épique, Légendaire).",
-      "Système de Ranked avec chrono cible sur la vague 50 et classement par taille d'escouade (1J à 6J).",
-      "Classes uniques en partie, menu déroulant, compteur de kills et tableau Tab en direct."
+      "Création de compte joueur et sauvegarde persistante des rangs, classements et statistiques.",
+      "Ajout de 2 nouvelles classes : Ingénieur (drone autonome) et Vampire (vol de vie).",
+      "Ajout de 4 nouveaux bonus (Vol de vie, Déflagration, Bouclier cinétique, Vélocité) et 2 combos."
     ]
   }
 ];
@@ -255,7 +260,7 @@ const INITIAL_PATCH_NOTES = [
 module.exports = {
   W, H, DT, TAU,
   MAX_PLAYERS, MAX_COMBOS, MAX_SUPER, MAX_WAVE,
-  SPAWNS, RANKS, RARITIES, rollRarity,
+  SPAWNS, RANKS, RARITIES, MAP_THEMES, rollRarity,
   CLASSES, UPGRADES, COMBOS, SUPER_COMBOS, findSuper,
   ENEMIES_INFO, BOSSES_INFO, INITIAL_PATCH_NOTES
 };

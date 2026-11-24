@@ -1,9 +1,9 @@
 const {
-  W, H, DT, TAU, MAX_WAVE, SPAWNS, RANKS, CLASSES, UPGRADES, BOSSES_INFO
+  W, H, DT, TAU, MAX_WAVE, SPAWNS, RANKS, CLASSES, UPGRADES, BOSSES_INFO, MAP_THEMES
 } = require("./constants");
 const { offerUpgrades, getComboHint } = require("./upgrades");
 const {
-  dist2, spawnBoss, spawnEnemy, explodeKamikaze, hitEnemy, triggerNova, updateEnemies
+  dist2, distToSegment2, spawnBoss, spawnEnemy, explodeKamikaze, hitEnemy, triggerNova, updateEnemies
 } = require("./entities");
 
 const nextNeed = (lvl, nPl = 1) => Math.round((7 + lvl * 4.2 + Math.floor(lvl * lvl * 0.38)) * (1 + (Math.max(1, nPl) - 1) * 0.18));
@@ -54,7 +54,7 @@ function createPlayer(ws, i, profile) {
     hp: base.hp, max: base.max,
     down: 0, rev: 0, revBy: 0, inv: 0,
     dx: 0, dy: 0, cd: 0, droneCd: 0.6, dc: 0, dsh: 0,
-    pend: 0, ch: null, sc: 0, linked: 0, lsBank: 4.5,
+    pend: 0, ch: null, rerolls: 2, sc: 0, linked: 0, lsBank: 4.5,
     invList: Array(UPGRADES.length).fill(0),
     fusedLvl: Array(10).fill(0),
     combos: [], supers: [],
@@ -152,7 +152,7 @@ function tickRoom(r, onVictory) {
       }
     }
 
-    // Drone autonome (classe Ingénieur)
+    // Drone autonome (Ingénieur)
     if (p.S.drone > 0 && r.E.length) {
       p.droneCd -= DT;
       if (p.droneCd <= 0) {
@@ -174,7 +174,7 @@ function tickRoom(r, onVictory) {
       }
     }
 
-    // Tir principal
+    // Tir principal (angle resserré pour éviter tout trou central en nombre pair)
     if (p.cd <= 0 && r.E.length) {
       let n = null, nd = 1e9;
       for (const e of r.E) {
@@ -187,12 +187,13 @@ function tickRoom(r, onVictory) {
       const bSpd = 460 * p.S.projSpd;
       p.sc = (p.sc + 1) % 256;
       const isNova = (p.S.nova > 0 && (p.sc % p.S.novaEvery === 0)) ? 1 : 0;
+      const spread = p.S.multi <= 1 ? 0 : Math.min(0.09, 0.48 / (p.S.multi - 1));
 
       for (let i = 0; i < p.S.multi; i++) {
-        const a = an + (i - (p.S.multi - 1) / 2) * 0.18;
+        const a = an + (i - (p.S.multi - 1) / 2) * spread;
         r.B.push({
           x: p.x, y: p.y, vx: Math.cos(a) * bSpd, vy: Math.sin(a) * bSpd,
-          l: 1.1 * Math.max(1, p.S.projSpd * 0.9), p: p.S.pierce, bn: p.S.bounce,
+          l: 1.15 * Math.max(1, p.S.projSpd * 0.9), p: p.S.pierce, bn: p.S.bounce,
           h: [], o: p.i, d: dm, hv: hasHeavy ? 1 : 0,
           cr: p.S.crit, cm: p.S.critMult, nv: (i === 0 ? isNova : 0)
         });
@@ -201,16 +202,21 @@ function tickRoom(r, onVictory) {
     }
   }
 
-  // Projectiles joueurs
-  const bounceMax2 = 235 * 235;
+  // Projectiles joueurs avec collision continue par segment (anti-projectiles fantômes)
+  const bounceMax2 = 245 * 245;
   for (const b of r.B) {
-    b.x += b.vx * DT; b.y += b.vy * DT; b.l -= DT;
+    const prevX = b.x;
+    const prevY = b.y;
+    b.x += b.vx * DT;
+    b.y += b.vy * DT;
+    b.l -= DT;
     if (b.l <= 0) continue;
+
     for (const e of r.E) {
       if (b.l <= 0 || e.hp <= 0) break;
       if (b.h.indexOf(e.id) !== -1) continue;
-      const rad = e.r + 4;
-      if (dist2(e.x, e.y, b.x, b.y) >= rad * rad) continue;
+      const rad = e.r + 5;
+      if (distToSegment2(prevX, prevY, b.x, b.y, e.x, e.y) > rad * rad) continue;
 
       const isCrit = b.cr > 0 && Math.random() < b.cr;
       hitEnemy(r, e, isCrit ? b.d * b.cm : b.d, b.o, isCrit);
@@ -219,21 +225,24 @@ function tickRoom(r, onVictory) {
       if (b.nv) {
         b.nv = 0;
         const owner = pl[b.o];
-        if (owner) triggerNova(r, b.x, b.y, owner);
+        if (owner) triggerNova(r, e.x, e.y, owner);
       }
 
       if (b.bn > 0) {
         let nextT = null, bestD2 = bounceMax2;
         for (const cand of r.E) {
           if (cand.hp <= 0 || b.h.indexOf(cand.id) !== -1) continue;
-          const d2 = dist2(b.x, b.y, cand.x, cand.y);
+          const d2 = dist2(e.x, e.y, cand.x, cand.y);
           if (d2 < bestD2) { bestD2 = d2; nextT = cand; }
         }
         if (nextT) {
           b.bn--;
-          const ang = Math.atan2(nextT.y - b.y, nextT.x - b.x);
+          b.x = e.x;
+          b.y = e.y;
+          const ang = Math.atan2(nextT.y - e.y, nextT.x - e.x);
           const spd = Math.hypot(b.vx, b.vy) || 460;
-          b.vx = Math.cos(ang) * spd; b.vy = Math.sin(ang) * spd;
+          b.vx = Math.cos(ang) * spd;
+          b.vy = Math.sin(ang) * spd;
           b.l = Math.max(b.l, 0.55);
           break;
         }
@@ -254,6 +263,7 @@ function tickRoom(r, onVictory) {
     if (e.k === 4) {
       for (const p of pl) {
         p.pend++;
+        p.rerolls = Math.min(5, (p.rerolls || 0) + 1);
         if (!p.ch) offerUpgrades(p, r.lvl);
         if (p.down) { p.down = 0; p.rev = 0; p.revBy = 0; p.inv = 4.0; }
         p.hp = Math.min(p.max, Math.max(p.hp, p.max * 0.5) + p.max * 0.35);
@@ -327,7 +337,7 @@ function tickRoom(r, onVictory) {
       for (const e of r.E) if (!(e.bc > 0)) {
         const rad = e.r + 7;
         if (dist2(e.x, e.y, bx, by) < rad * rad) {
-          hitEnemy(r, e, 1.3 * p.S.dmg, p.i, false);
+          hitEnemy(r, e, 1.35 * p.S.dmg, p.i, false);
           e.bc = 0.28;
         }
       }
@@ -391,9 +401,10 @@ function buildSnapshot(r, leaderboard) {
 
   const ended = (r.st === "over" || r.st === "win");
   const wd = (r.E.length === 0 && r.toSpawn === 0 && r.wave > 0 && r.wave < MAX_WAVE) ? Math.max(0, R(r.waveDelay * 10) / 10) : 0;
+  const theme = r.wave > 0 ? Math.floor((r.wave - 1) / 5) % MAP_THEMES.length : 0;
 
   const shared = {
-    t: "s", st: r.st, code: r.code, n: r.pl.length,
+    t: "s", st: r.st, code: r.code, n: r.pl.length, th: theme,
     names: r.pl.map(p => p.name), skins: r.pl.map(p => p.skin), ranks: r.pl.map(p => p.rank),
     tm: R(r.t * 10) / 10, k: r.kills, l: r.lvl, xp: R(r.xp * 10) / 10, nd: r.need,
     lks: r.links, flk: r.fullLink, wv: r.wave, mw: MAX_WAVE,
@@ -422,14 +433,35 @@ function buildSnapshot(r, leaderboard) {
   for (const p of r.pl) if (p.ws.readyState === 1) {
     const full = p.linked === 2;
     const rateM = full ? 1.22 : (p.linked === 1 ? 1.12 : 1);
+    const linkRed = full ? 0.12 : (p.linked === 1 ? 0.05 : 0);
+    const regenBonus = full ? 1.2 : (p.linked === 1 ? 0.4 : 0);
     const dmgEff = getEffectiveDmgMult(p);
     const personal = JSON.stringify({
       me: p.i, myRank: p.rank, inv: p.invList, cmb: p.combos, sup: p.supers,
+      rr: p.rerolls || 0,
       stMe: {
+        hp: R(p.hp), maxHp: p.max,
         dmg: R(dmgEff * 100) / 100,
         rate: R((p.S.rate * rateM / 0.52) * 10) / 10,
         multi: p.S.multi,
-        pierce: p.S.pierce
+        pierce: p.S.pierce,
+        bounce: p.S.bounce,
+        crit: Math.min(100, R(p.S.crit * 100)),
+        critMult: R(p.S.critMult * 10) / 10,
+        speed: R(p.S.speed * (full ? 1.08 : 1) * 100),
+        armor: Math.min(65, R((p.S.armor + linkRed) * 100)),
+        regen: R((p.S.regen + regenBonus) * 10) / 10,
+        lifesteal: R(p.S.lifesteal * 1000) / 10,
+        magnet: R(85 * p.S.magnet),
+        orb: p.S.orb,
+        orbSpd: R(p.S.orbSpd * 100),
+        nova: p.S.nova,
+        novaEvery: p.S.novaEvery,
+        frostSlow: p.S.frost > 0 ? R(p.S.frostSlow * 100) : 0,
+        corpseExp: R(p.S.corpseExp * 100),
+        projSpd: R(p.S.projSpd * 100),
+        xpMult: R(p.S.xpMult * 100),
+        drone: p.S.drone
       },
       ch: p.ch ? p.ch.map(c => [c.u, UPGRADES[c.u].title(c.r), UPGRADES[c.u].desc(c.r), getComboHint(p, c.u), c.r]) : null
     }).slice(1);
