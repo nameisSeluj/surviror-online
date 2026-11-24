@@ -5,27 +5,54 @@ const crypto = require("crypto");
 const { WebSocketServer } = require("ws");
 
 const {
-  DT, MAX_PLAYERS, MAX_WAVE, RANKS, RARITIES,
+  DT, MAX_PLAYERS, MAX_WAVE, RANKS, RARITIES, MAP_THEMES,
   CLASSES, UPGRADES, COMBOS, SUPER_COMBOS,
   ENEMIES_INFO, BOSSES_INFO, INITIAL_PATCH_NOTES
 } = require("./game/constants");
 const {
   isSkinTaken, findFreeSkin, createPlayer, resetRoom, tickRoom, buildSnapshot
 } = require("./game/engine");
-const { offerUpgrades, applyUpgrade } = require("./game/upgrades");
+const { offerUpgrades, rerollUpgrades, applyUpgrade } = require("./game/upgrades");
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(process.cwd(), "public");
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_FILE = path.join(DATA_DIR, "db.json");
 
-// --- Persistance JSON (comptes, rangs, classements) ---
+// --- Persistance JSON (comptes, rangs, maîtrise des classes, classements) ---
+function createEmptyMastery() {
+  const m = {};
+  for (let i = 0; i < CLASSES.length; i++) {
+    m[i] = { games: 0, wins: 0, kills: 0, dmg: 0, bestWave: 0 };
+  }
+  return m;
+}
+
+function ensureUserShape(u) {
+  u.skin = u.skin || 0;
+  u.rank = u.rank || 0;
+  u.games = u.games || 0;
+  u.wins = u.wins || 0;
+  u.kills = u.kills || 0;
+  u.bestWave = u.bestWave || 0;
+  u.totalDmg = u.totalDmg || 0;
+  u.totalRevives = u.totalRevives || 0;
+  u.totalGems = u.totalGems || 0;
+  if (u.bestTime === undefined) u.bestTime = null;
+  if (!u.mastery || typeof u.mastery !== "object") u.mastery = createEmptyMastery();
+  for (let i = 0; i < CLASSES.length; i++) {
+    if (!u.mastery[i]) u.mastery[i] = { games: 0, wins: 0, kills: 0, dmg: 0, bestWave: 0 };
+  }
+  return u;
+}
+
 function loadDb() {
   try {
     if (fs.existsSync(DB_FILE)) {
       const raw = JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
+      const users = (raw.users || []).map(ensureUserShape);
       return {
-        users: raw.users || [],
+        users,
         leaderboard: Object.assign({ 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }, raw.leaderboard || {})
       };
     }
@@ -60,15 +87,21 @@ function verifyPassword(pwd, stored) {
 }
 
 function publicUser(u) {
+  ensureUserShape(u);
   return {
     id: u.id,
     username: u.username,
-    skin: u.skin || 0,
-    rank: u.rank || 0,
-    games: u.games || 0,
-    wins: u.wins || 0,
-    kills: u.kills || 0,
-    bestWave: u.bestWave || 0
+    skin: u.skin,
+    rank: u.rank,
+    games: u.games,
+    wins: u.wins,
+    kills: u.kills,
+    bestWave: u.bestWave,
+    totalDmg: Math.round(u.totalDmg),
+    totalRevives: u.totalRevives,
+    totalGems: u.totalGems,
+    bestTime: u.bestTime,
+    mastery: u.mastery
   };
 }
 
@@ -101,6 +134,7 @@ function buildEncyclopedia() {
   return {
     ranks: RANKS,
     rarities: RARITIES,
+    themes: MAP_THEMES,
     classes: CLASSES.map(c => ({ id: c.id, name: c.name, passive: c.passive, bonus: c.bonus })),
     upgrades: UPGRADES.map(u => ({ id: u.id, short: u.short, desc: u.desc(0) })),
     combos: COMBOS.map(c => ({
@@ -161,7 +195,6 @@ function readBody(req) {
 const server = http.createServer(async (req, res) => {
   const urlPath = (req.url || "/").split("?")[0];
 
-  // Routes API
   if (urlPath === "/api/data" && req.method === "GET") {
     return sendJson(res, 200, {
       leaderboard: db.leaderboard,
@@ -183,17 +216,12 @@ const server = http.createServer(async (req, res) => {
     if (db.users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
       return sendJson(res, 409, { error: "Ce pseudo est déjà utilisé." });
     }
-    const user = {
+    const user = ensureUserShape({
       id: db.users.length ? Math.max(...db.users.map(u => u.id)) + 1 : 1,
       username,
       passwordHash: hashPassword(password),
-      skin: Math.max(0, Math.min(CLASSES.length - 1, parseInt(body.skin, 10) || 0)),
-      rank: 0,
-      games: 0,
-      wins: 0,
-      kills: 0,
-      bestWave: 0
-    };
+      skin: Math.max(0, Math.min(CLASSES.length - 1, parseInt(body.skin, 10) || 0))
+    });
     db.users.push(user);
     saveDb();
     const token = crypto.randomBytes(24).toString("hex");
@@ -235,7 +263,6 @@ const server = http.createServer(async (req, res) => {
     return res.end("Forbidden");
   }
 
-  // Fallback si l'accueil s'appelle encore index_2.html
   if (urlPath === "/" && !fs.existsSync(filePath)) {
     const alt = path.join(PUBLIC_DIR, "index_2.html");
     if (fs.existsSync(alt)) filePath = alt;
@@ -268,6 +295,7 @@ function makeCode() {
 function recordMatchResult(r, isWin) {
   if (r.recorded) return;
   r.recorded = true;
+  const runTime = Math.round(r.t * 10) / 10;
 
   for (const p of r.pl) {
     p.oldRank = p.rank;
@@ -281,12 +309,30 @@ function recordMatchResult(r, isWin) {
     if (p.userId) {
       const u = db.users.find(x => x.id === p.userId);
       if (u) {
-        u.games = (u.games || 0) + 1;
-        if (isWin) u.wins = (u.wins || 0) + 1;
-        u.kills = (u.kills || 0) + p.st.kills;
-        u.bestWave = Math.max(u.bestWave || 0, r.wave);
-        u.rank = Math.max(u.rank || 0, p.rank);
+        ensureUserShape(u);
+        u.games += 1;
+        if (isWin) {
+          u.wins += 1;
+          if (u.bestTime === null || runTime < u.bestTime) u.bestTime = runTime;
+        }
+        u.kills += p.st.kills;
+        u.totalDmg += Math.round(p.st.dmg);
+        u.totalRevives += p.st.revives;
+        u.totalGems += p.st.gems;
+        u.bestWave = Math.max(u.bestWave, r.wave);
+        u.rank = Math.max(u.rank, p.rank);
         u.skin = p.skin;
+
+        const cm = u.mastery[p.skin];
+        cm.games += 1;
+        if (isWin) cm.wins += 1;
+        cm.kills += p.st.kills;
+        cm.dmg += Math.round(p.st.dmg);
+        cm.bestWave = Math.max(cm.bestWave, r.wave);
+
+        if (p.ws.readyState === 1) {
+          p.ws.send(JSON.stringify({ t: "user", user: publicUser(u) }));
+        }
       }
     }
   }
@@ -295,7 +341,7 @@ function recordMatchResult(r, isWin) {
     const bucket = Math.max(1, Math.min(6, r.pl.length));
     const dateStr = new Date().toLocaleDateString("fr-FR");
     db.leaderboard[bucket].push({
-      t: Math.round(r.t * 10) / 10,
+      t: runTime,
       pl: r.pl.map(p => ({ name: p.name, skin: p.skin })),
       d: dateStr
     });
@@ -390,6 +436,10 @@ wss.on("connection", ws => {
         curPlayer.dsh = 0.16;
         curPlayer.dc = 1.6 * curPlayer.S.dashCd;
         curPlayer.inv = Math.max(curPlayer.inv, 0.24);
+      }
+    } else if (msg.t === "reroll" && curRoom.st === "play" && curPlayer.ch) {
+      if (rerollUpgrades(curPlayer, curRoom.lvl)) {
+        buildSnapshot(curRoom, db.leaderboard);
       }
     } else if (msg.t === "pick" && curRoom.st === "play" && curPlayer.ch) {
       const slot = parseInt(msg.k, 10);
