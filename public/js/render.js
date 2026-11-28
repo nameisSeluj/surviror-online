@@ -4,7 +4,7 @@ window.Render = (function () {
   var SERIF = 'Georgia,"Times New Roman",serif';
   var lastThemeId = -1;
 
-  var FX = { PA: [], DEC: [], RINGS: [], FLOATS: [], GHOSTS: [], TR: [[], [], [], [], [], []], shake: 0, flashE: {} };
+  var FX = { PA: [], DEC: [], RINGS: [], FLOATS: [], TR: [[], [], [], [], [], []], shake: 0, flashE: {} };
 
   function addRing(x, y, rMax, c, lw) {
     if (FX.RINGS.length >= 26) FX.RINGS.shift();
@@ -26,7 +26,7 @@ window.Render = (function () {
     }
   }
   function resetFx() {
-    FX.PA = []; FX.DEC = []; FX.RINGS = []; FX.FLOATS = []; FX.GHOSTS = [];
+    FX.PA = []; FX.DEC = []; FX.RINGS = []; FX.FLOATS = [];
     FX.TR = [[], [], [], [], [], []]; FX.shake = 0; FX.flashE = {};
     lastThemeId = -1;
   }
@@ -79,6 +79,7 @@ window.Render = (function () {
   function drawPlayer(ctx, S, p, i, v, aimAngle, tt, pName) {
     var c = Sprites.CO[i % 6], cd = Sprites.CO_DARK[i % 6], T = FX.TR[i];
     var skin = p[16] || 0, frostR = p[18] || 0, drones = p[21] || 0;
+    var orbRad = p[22] || 62, orbSize = p[23] || 1.0, isDc = p[24] === 1;
     var bob = S.pz ? 0 : Math.sin(tt * 15 + i) * 2.2 * Math.min(1, Math.hypot(v.vx || 0, v.vy || 0) / 6);
 
     if (p[4]) {
@@ -95,10 +96,19 @@ window.Render = (function () {
       return;
     }
 
+    // Aura de givre cristalline
     if (frostR > 0) {
-      ctx.fillStyle = "rgba(124,232,255,.06)"; ctx.beginPath(); ctx.arc(v.x, v.y, frostR, 0, TAU); ctx.fill();
-      ctx.strokeStyle = "rgba(124,232,255,.26)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(v.x, v.y, frostR, 0, TAU); ctx.stroke();
+      var fg = ctx.createRadialGradient(v.x, v.y, frostR * 0.2, v.x, v.y, frostR);
+      fg.addColorStop(0, "rgba(124,232,255,0.02)");
+      fg.addColorStop(1, "rgba(124,232,255,0.14)");
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.arc(v.x, v.y, frostR, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "rgba(124,232,255,.35)"; ctx.lineWidth = 1.6;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath(); ctx.arc(v.x, v.y, frostR, tt * 0.4, tt * 0.4 + TAU); ctx.stroke();
+      ctx.setLineDash([]);
     }
+
     if (p[6]) {
       ctx.strokeStyle = "rgba(126,224,155,.65)"; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(v.x, v.y, 17 + Math.sin(tt * 14) * 1.5, 0, TAU); ctx.stroke();
@@ -123,12 +133,12 @@ window.Render = (function () {
 
     ctx.save();
     ctx.translate(v.x, v.y - Math.abs(bob));
-    ctx.globalAlpha = p[6] && Math.floor(tt * 20) % 2 ? 0.45 : 1;
+    ctx.globalAlpha = isDc ? 0.5 : (p[6] && Math.floor(tt * 20) % 2 ? 0.45 : 1);
     ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, 0, 11, 0, TAU); ctx.fill();
     ctx.fillStyle = cd; ctx.beginPath(); ctx.arc(0, 2, 9.5, 0.2, Math.PI - 0.2); ctx.fill();
     ctx.strokeStyle = "#120d0a"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, 11, 0, TAU); ctx.stroke();
 
-    if (skin !== 5 && skin !== 7) {
+    if (skin !== 5) {
       ctx.fillStyle = "#f5ebd6";
       ctx.beginPath(); ctx.arc(Math.cos(aimAngle) * 3.5, Math.sin(aimAngle) * 3.5, 4.5, 0, TAU); ctx.fill();
       ctx.strokeStyle = "#120d0a"; ctx.lineWidth = 1.5; ctx.stroke();
@@ -144,19 +154,49 @@ window.Render = (function () {
       ctx.fillStyle = "#66f7ff"; ctx.beginPath(); ctx.arc(v.x, dy, 2, 0, TAU); ctx.fill();
     }
 
+    // Lames orbitales géantes et éloignées avec traînée lumineuse
     if (p[10]) {
       var ospd = p[14] || 1;
+      var bigBlade = orbSize > 1.25;
+      ctx.strokeStyle = bigBlade ? "rgba(255, 209, 102, 0.16)" : "rgba(216, 207, 192, 0.10)";
+      ctx.lineWidth = bigBlade ? 3 : 1.5;
+      ctx.beginPath(); ctx.arc(v.x, v.y, orbRad, 0, TAU); ctx.stroke();
+
       for (var q = 0; q < p[10]; q++) {
-        var oa = S.oa * ospd + q * TAU / p[10], bx = v.x + Math.cos(oa) * 46, by = v.y + Math.sin(oa) * 46;
-        ctx.save(); ctx.translate(bx, by); ctx.rotate(oa + 1.57);
-        ctx.fillStyle = "#d8cfc0"; ctx.strokeStyle = "#120d0a"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(5, 0); ctx.lineTo(0, 8); ctx.lineTo(-5, 0); ctx.closePath();
-        ctx.fill(); ctx.stroke(); ctx.restore();
+        var oa = S.oa * ospd + q * TAU / p[10];
+        var bx = v.x + Math.cos(oa) * orbRad;
+        var by = v.y + Math.sin(oa) * orbRad;
+
+        // Arc de traînée derrière la lame
+        ctx.strokeStyle = bigBlade ? "rgba(255, 159, 28, 0.45)" : "rgba(255, 255, 255, 0.25)";
+        ctx.lineWidth = 4 * orbSize;
+        ctx.beginPath();
+        ctx.arc(v.x, v.y, orbRad, oa - 0.35, oa);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(oa + 1.57);
+        ctx.scale(orbSize, orbSize);
+        ctx.fillStyle = bigBlade ? "#ffd166" : "#e6dfd3";
+        ctx.strokeStyle = "#120d0a";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -11);
+        ctx.lineTo(6.5, 0);
+        ctx.lineTo(0, 11);
+        ctx.lineTo(-6.5, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
       }
     }
 
-    ctx.fillStyle = i === S.me ? "#ffd166" : "#f0e6d6"; ctx.font = "bold 10px " + FONT; ctx.textAlign = "center";
-    ctx.fillText(pName, v.x, v.y - (drones > 0 ? 30 : 21));
+    ctx.fillStyle = isDc ? "#ff9e9e" : (i === S.me ? "#ffd166" : "#f0e6d6");
+    ctx.font = "bold 10px " + FONT;
+    ctx.textAlign = "center";
+    ctx.fillText(isDc ? (pName + " (DÉCO)") : pName, v.x, v.y - (drones > 0 ? 30 : 21));
   }
 
   function drawFrame(ctx, App, tt) {
@@ -171,7 +211,9 @@ window.Render = (function () {
 
     var bgImg = Sprites.createArenaBg(W, H, curTheme);
     ctx.save();
-    if (FX.shake > 0 && !(S && S.pz)) ctx.translate((Math.random() - 0.5) * FX.shake, (Math.random() - 0.5) * FX.shake);
+    if (FX.shake > 0 && !(S && S.pz) && (!window.SoundFX || SoundFX.settings.shake)) {
+      ctx.translate((Math.random() - 0.5) * FX.shake, (Math.random() - 0.5) * FX.shake);
+    }
     ctx.drawImage(bgImg, 0, 0);
 
     FX.DEC.forEach(function (d) { ctx.globalAlpha = d.a; ctx.fillStyle = d.c; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill(); });
@@ -197,7 +239,7 @@ window.Render = (function () {
         drawEnemy(ctx, e, ang, tt, S.pz);
       });
 
-      // Projectiles joueurs
+      // Projectiles joueurs avec halo lumineux
       S.B.forEach(function (b) {
         ctx.strokeStyle = "#120d0a"; ctx.lineWidth = b[5] ? 6.5 : 5; ctx.lineCap = "round";
         ctx.beginPath(); ctx.moveTo(b[0] - b[2] * 0.034, b[1] - b[3] * 0.034); ctx.lineTo(b[0], b[1]); ctx.stroke();
@@ -205,7 +247,7 @@ window.Render = (function () {
         ctx.beginPath(); ctx.moveTo(b[0] - b[2] * 0.034, b[1] - b[3] * 0.034); ctx.lineTo(b[0], b[1]); ctx.stroke();
       });
 
-      // Projectiles ennemis haute visibilité (halo + contour lumineux + cœur blanc)
+      // Projectiles ennemis haute visibilité
       var pulse = 1 + Math.sin(tt * 16) * 0.14;
       S.X.forEach(function (xb) {
         ctx.fillStyle = "rgba(255, 46, 85, 0.34)";
@@ -247,7 +289,7 @@ window.Render = (function () {
     }
     ctx.restore();
 
-    // HUD minimaliste sur le canvas (barre d'XP, vague et boss uniquement)
+    // HUD supérieur minimaliste
     if (S && S.st !== "lobby") {
       ctx.fillStyle = "#120d0a"; ctx.fillRect(0, 0, W, 8);
       ctx.fillStyle = "#3fa796"; ctx.fillRect(0, 0, W * Math.min(1, S.xp / S.nd), 7);
@@ -269,9 +311,9 @@ window.Render = (function () {
       if (S.pz && !S.mpz) {
         ctx.fillStyle = "rgba(10,8,6,.76)"; ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = "#e5a93c"; ctx.font = "bold 26px " + SERIF; ctx.textAlign = "center";
-        ctx.fillText("PAUSE — NIVEAU " + S.l, W / 2, H / 2 - 84);
-        ctx.fillStyle = "#f0e6d6"; ctx.font = "bold 14px " + FONT;
-        ctx.fillText((S.ch && S.ch.length) ? "Choisis ton amélioration (1/& , 2/é , 3/\") ou relance [R]" : "En attente de l’escouade…", W / 2, H / 2 - 56);
+        ctx.fillText("PAUSE — NIVEAU " + S.l, W / 2, H / 2 - 96);
+        ctx.fillStyle = "#f0e6d6"; ctx.font = "bold 13px " + FONT;
+        ctx.fillText((S.ch && S.ch.length) ? "Choisis une amélioration (sélection auto dans " + (S.pt || 15) + " s)" : "En attente de l’escouade…", W / 2, H / 2 - 68);
       }
     }
   }

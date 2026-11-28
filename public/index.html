@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Survivor Squad</title>
   <link rel="stylesheet" href="./style.css">
 </head>
@@ -14,7 +14,17 @@
       <canvas id="c" width="800" height="560"></canvas>
       <div id="pk"></div>
       <div id="tt"></div>
-      <button id="dash" aria-label="Esquive">DASH</button>
+
+      <!-- Contrôles tactiles mobile -->
+      <div id="joyZone" aria-hidden="true">
+        <div id="joyBase"><div id="joyKnob"></div></div>
+      </div>
+      <div id="mobBtns">
+        <button type="button" id="mobPause" aria-label="Pause">II</button>
+        <button type="button" id="mobTab" aria-label="Score">TAB</button>
+        <button type="button" id="dash" aria-label="Esquive">DASH</button>
+      </div>
+
       <div id="ov"></div>
       <div id="tabModal"></div>
       <div id="subModal" class="modal-overlay"></div>
@@ -23,6 +33,7 @@
     <aside id="rightHud" class="side-hud"></aside>
   </div>
 
+  <script src="/js/audio.js"></script>
   <script src="/js/sprites.js"></script>
   <script src="/js/render.js"></script>
   <script src="/js/ui.js"></script>

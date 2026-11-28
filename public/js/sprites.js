@@ -10,24 +10,25 @@ window.Sprites = (function () {
     return "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' + inner + "</svg>");
   }
 
+  // Aligné sur les 17 IDs de UPGRADES (0..16)
   var UP_IMGS = [
     svgUri('<path d="M24 4L28 8L13 23L9 19Z" fill="#e5a93c"/><path d="M7 21L11 25L6 28L4 26Z" fill="#d94e4e"/>'),
     svgUri('<path d="M18 3L8 17h7l-2 12 11-14h-7z" fill="#ffd166" stroke="#8c5a19" stroke-width="1.5"/>'),
     svgUri('<path d="M6 24L12 8M16 24V6M26 24L20 8" stroke="#5b8fd9" stroke-width="3" stroke-linecap="round"/>'),
     svgUri('<line x1="3" y1="16" x2="29" y2="16" stroke="#e5a93c" stroke-width="3"/><polygon points="29,16 22,11 22,21" fill="#ffd166"/><rect x="13" y="7" width="4" height="18" rx="1" fill="#d96277"/>'),
     svgUri('<path d="M5 22c6 0 11-4 14-11l7 4c-3 7-9 11-18 11z" fill="#59b878"/>'),
-    svgUri('<path d="M8 7v10a8 8 0 0016 0V7h-4v10a4 4 0 01-8 0V7z" fill="#d94e4e"/><rect x="8" y="6" width="4" height="4" fill="#e0e6ed"/><rect x="20" y="6" width="4" height="4" fill="#e0e6ed"/>'),
-    svgUri('<path d="M16 27S5 19.5 5 12a6 6 0 0111-3.3A6 6 0 0127 12c0 7.5-11 15-11 15z" fill="#59b878"/><path d="M16 11v8M12 15h8" stroke="#14110e" stroke-width="2.4"/>'),
-    svgUri('<circle cx="16" cy="16" r="9" fill="none" stroke="#9c8e7c" stroke-dasharray="3 3" stroke-width="1.6"/><polygon points="16,2 19,7 16,10 13,7" fill="#e0e6ed"/><polygon points="16,30 19,25 16,22 13,25" fill="#e0e6ed"/>'),
+    svgUri('<path d="M16 4C16 4 7 14 7 20a9 9 0 0018 0C25 14 16 4 16 4z" fill="#e05656" stroke="#120d0a" stroke-width="1.5"/>'),
     svgUri('<path d="M16 3L27 7v8c0 7.5-4.8 12.2-11 14C9.8 27.2 5 22.5 5 15V7z" fill="#5b8fd9"/><path d="M16 10v10M11 15h10" stroke="#f0e6d6" stroke-width="2.6"/>'),
+    svgUri('<circle cx="16" cy="16" r="9" fill="none" stroke="#9c8e7c" stroke-dasharray="3 3" stroke-width="1.6"/><polygon points="16,2 20,8 16,12 12,8" fill="#ffd166"/><polygon points="16,30 20,24 16,20 12,24" fill="#ffd166"/>'),
+    svgUri('<polygon points="16,3 27,9 27,23 16,29 5,23 5,9" fill="none" stroke="#66f7ff" stroke-width="2.6"/><circle cx="16" cy="16" r="5" fill="#45b8b0"/>'),
     svgUri('<polygon points="16,2 20,11 30,12 22,19 25,29 16,23 7,29 10,19 2,12 12,11" fill="#ffd166"/>'),
     svgUri('<circle cx="16" cy="16" r="4" fill="#ff9f1c"/><circle cx="16" cy="16" r="9" fill="none" stroke="#e5a93c" stroke-width="2.2"/><circle cx="16" cy="16" r="14" fill="none" stroke="#e05656" stroke-width="1.8" stroke-dasharray="4 3"/>'),
     svgUri('<polyline points="5,25 15,8 25,22 28,12" fill="none" stroke="#45b8b0" stroke-width="2.8" stroke-linecap="round"/><circle cx="15" cy="8" r="2.8" fill="#ffd166"/>'),
     svgUri('<g stroke="#7ce8ff" stroke-width="2.3" stroke-linecap="round"><line x1="16" y1="3" x2="16" y2="29"/><line x1="4.7" y1="9.5" x2="27.3" y2="22.5"/><line x1="27.3" y1="9.5" x2="4.7" y2="22.5"/></g>'),
-    svgUri('<path d="M16 4C16 4 7 14 7 20a9 9 0 0018 0C25 14 16 4 16 4z" fill="#e05656" stroke="#120d0a" stroke-width="1.5"/>'),
+    svgUri('<path d="M16 27S5 19.5 5 12a6 6 0 0111-3.3A6 6 0 0127 12c0 7.5-11 15-11 15z" fill="#59b878"/><path d="M16 11v8M12 15h8" stroke="#14110e" stroke-width="2.4"/>'),
     svgUri('<polygon points="16,2 20,10 29,8 24,16 30,23 21,23 18,30 13,23 4,25 9,17 3,10 12,10" fill="#ff9f1c" stroke="#d94e4e" stroke-width="1.5"/>'),
-    svgUri('<polygon points="16,3 27,9 27,23 16,29 5,23 5,9" fill="none" stroke="#66f7ff" stroke-width="2.6"/><circle cx="16" cy="16" r="5" fill="#45b8b0"/>'),
-    svgUri('<path d="M4 16h18M17 10l8 6-8 6" fill="none" stroke="#ffd166" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><line x1="4" y1="11" x2="11" y2="11" stroke="#9be8d8" stroke-width="2"/>')
+    svgUri('<circle cx="16" cy="16" r="7" fill="#e5a93c" stroke="#120d0a" stroke-width="2"/><circle cx="16" cy="16" r="3" fill="#66f7ff"/><line x1="6" y1="10" x2="26" y2="10" stroke="#cfd6de" stroke-width="2"/>'),
+    svgUri('<path d="M8 7v10a8 8 0 0016 0V7h-4v10a4 4 0 01-8 0V7z" fill="#d94e4e"/><rect x="8" y="6" width="4" height="4" fill="#e0e6ed"/><rect x="20" y="6" width="4" height="4" fill="#e0e6ed"/>')
   ];
 
   function drawSkinDetail(g, skin, aimAngle) {
@@ -63,10 +64,8 @@ window.Sprites = (function () {
       g.moveTo(-8, -8); g.lineTo(-9, -16); g.lineTo(-4, -12); g.lineTo(0, -17); g.lineTo(4, -12); g.lineTo(9, -16); g.lineTo(8, -8);
       g.closePath(); g.fill(); g.stroke();
     } else if (skin === 7) {
-      g.fillStyle = "#181512"; g.strokeStyle = "#0a0807"; g.lineWidth = 1.8;
+      g.fillStyle = "#1d3557"; g.strokeStyle = "#7ce8ff"; g.lineWidth = 1.6;
       g.beginPath(); g.arc(0, -1, 11.8, Math.PI * 0.85, Math.PI * 2.15); g.closePath(); g.fill(); g.stroke();
-      var ex = Math.cos(aimAngle) * 4, ey = Math.sin(aimAngle) * 4;
-      g.fillStyle = "#ff6b6b"; g.beginPath(); g.arc(ex - 2, ey, 1.7, 0, TAU); g.arc(ex + 2, ey, 1.7, 0, TAU); g.fill();
     } else if (skin === 8) {
       g.fillStyle = "#e5a93c"; g.strokeStyle = "#120d0a"; g.lineWidth = 1.6;
       g.beginPath(); g.arc(0, -2, 11.2, Math.PI, TAU); g.closePath(); g.fill(); g.stroke();
@@ -92,7 +91,7 @@ window.Sprites = (function () {
     g.fillStyle = c; g.beginPath(); g.arc(0, 0, 11, 0, TAU); g.fill();
     g.fillStyle = cd; g.beginPath(); g.arc(0, 2, 9.5, 0.2, Math.PI - 0.2); g.fill();
     g.strokeStyle = "#120d0a"; g.lineWidth = 2.4; g.beginPath(); g.arc(0, 0, 11, 0, TAU); g.stroke();
-    if (skinIdx !== 5 && skinIdx !== 7) {
+    if (skinIdx !== 5) {
       g.fillStyle = "#f5ebd6"; g.beginPath(); g.arc(3.5, 0, 4.5, 0, TAU); g.fill();
       g.strokeStyle = "#120d0a"; g.lineWidth = 1.5; g.stroke();
     }
@@ -131,16 +130,26 @@ window.Sprites = (function () {
         var v = ((x * 17 + y * 31 + tid * 13) % 11) - 5;
         g.fillStyle = "rgb(" + Math.max(8, rgb[0] + v) + "," + Math.max(8, rgb[1] + v) + "," + Math.max(8, rgb[2] + v) + ")";
         g.fillRect(x + 1, y + 1, ts - 2, ts - 2);
+        // Reflet subtil en coin de dalle
+        g.fillStyle = "rgba(255,255,255,.025)";
+        g.fillRect(x + 2, y + 2, ts - 4, 2);
       }
     }
 
-    // Motif central discret assorti au thème
+    // Rosace géométrique centrale assortie au thème
     g.save();
     g.strokeStyle = accentCol;
-    g.globalAlpha = 0.12;
+    g.globalAlpha = 0.14;
     g.lineWidth = 2;
-    g.beginPath(); g.arc(W / 2, H / 2, 110, 0, TAU); g.stroke();
-    g.beginPath(); g.arc(W / 2, H / 2, 185, 0, TAU); g.stroke();
+    g.beginPath(); g.arc(W / 2, H / 2, 115, 0, TAU); g.stroke();
+    g.beginPath(); g.arc(W / 2, H / 2, 195, 0, TAU); g.stroke();
+    for (var i = 0; i < 8; i++) {
+      var ang = (i * TAU) / 8;
+      g.beginPath();
+      g.moveTo(W / 2 + Math.cos(ang) * 115, H / 2 + Math.sin(ang) * 115);
+      g.lineTo(W / 2 + Math.cos(ang) * 195, H / 2 + Math.sin(ang) * 195);
+      g.stroke();
+    }
     g.restore();
 
     var vg = g.createRadialGradient(W / 2, H / 2, W * 0.25, W / 2, H / 2, W * 0.68);
