@@ -1,10 +1,15 @@
+const crypto = require("crypto");
 const {
-  W, H, DT, TAU, MAX_WAVE, SPAWNS, RANKS, CLASSES, UPGRADES, BOSSES_INFO, MAP_THEMES
+  W, H, DT, MAX_WAVE, PICK_TIMEOUT, RECONNECT_GRACE,
+  DIFFICULTIES, RANKS, CLASSES, UPGRADES, BOSSES_INFO, MAP_THEMES
 } = require("./constants");
-const { offerUpgrades, getComboHint } = require("./upgrades");
+const { offerUpgrades, applyUpgrade } = require("./upgrades");
 const {
   dist2, distToSegment2, spawnBoss, spawnEnemy, explodeKamikaze, hitEnemy, triggerNova, updateEnemies
 } = require("./entities");
+
+const TAU = Math.PI * 2;
+const SPAWNS = [[-56, -34], [56, -34], [-56, 34], [56, 34], [0, -48], [0, 48]];
 
 const nextNeed = (lvl, nPl = 1) => Math.round((7 + lvl * 4.2 + Math.floor(lvl * lvl * 0.38)) * (1 + (Math.max(1, nPl) - 1) * 0.18));
 const cleanSkin = raw => Math.max(0, Math.min(CLASSES.length - 1, parseInt(raw, 10) || 0));
@@ -24,42 +29,47 @@ function findFreeSkin(r, preferred, ignorePlayer) {
 }
 
 function buildPlayerStats(skinIdx) {
-  const p = {
-    max: 100,
-    hp: 100,
-    S: {
-      dmg: 1, rate: 1, multi: 1, pierce: 0, speed: 1, magnet: 1, regen: 0,
-      orb: 0, orbSpd: 1, gemHeal: 0, crit: 0, critMult: 2.2,
-      nova: 0, novaEvery: 6, novaPow: 1, novaRad: 1, bounce: 0,
-      frost: 0, frostSlow: 0.35, frostRad: 1,
-      xpMult: 1, armor: 0, dashCd: 1, berserk: 0, revSpd: 0, soul: 0,
-      drone: 0, lifesteal: 0, corpseExp: 0, projSpd: 1
-    }
+  const s = {
+    hp: 100, maxHp: 100,
+    dmg: 1, rate: 1, multi: 1, pierce: 0, speed: 1, magnet: 85, regen: 0,
+    orb: 0, orbSpd: 1, orbRad: 62, orbSize: 1.0, orbDmgMult: 1.0,
+    crit: 0, critMult: 2.2,
+    nova: 0, novaEvery: 5,
+    bounce: 0,
+    frostR: 0, frostSlow: 0, frostDmg: 0,
+    xpMult: 1, armor: 0, dashCd: 1, revivePower: 0,
+    drone: 0, lifesteal: 0, corpseExp: 0, projSpd: 1
   };
-  CLASSES[cleanSkin(skinIdx)].apply(p);
-  return p;
+  CLASSES[cleanSkin(skinIdx)].apply(s);
+  return s;
 }
 
 function createPlayer(ws, i, profile) {
   const sp = SPAWNS[i % SPAWNS.length];
   const sk = cleanSkin(profile.skin);
   const rk = cleanRank(profile.rank);
-  const base = buildPlayerStats(sk);
+  const s = buildPlayerStats(sk);
   return {
     ws, i,
     userId: profile.userId || null,
+    rejoinKey: profile.rejoinKey || crypto.randomBytes(12).toString("hex"),
+    disconnected: false,
+    disconnectTime: 0,
     name: profile.name || `J${i + 1}`,
-    skin: sk, rank: rk, oldRank: rk, promoted: false,
+    skin: sk,
+    rank: rk,
+    elo: profile.elo || 0,
+    eloDelta: 0,
     x: W / 2 + sp[0], y: H / 2 + sp[1], r: 11,
-    hp: base.hp, max: base.max,
     down: 0, rev: 0, revBy: 0, inv: 0,
     dx: 0, dy: 0, cd: 0, droneCd: 0.6, dc: 0, dsh: 0,
-    pend: 0, ch: null, rerolls: 2, sc: 0, linked: 0, lsBank: 4.5,
-    invList: Array(UPGRADES.length).fill(0),
-    fusedLvl: Array(10).fill(0),
-    combos: [], supers: [],
+    pend: 0, ch: null, pickTimer: 0, rerolls: 2,
+    sc: 0, frostPulses: 0, linked: 0, lsBank: 10,
+    inv: Array(UPGRADES.length).fill(0),
+    combos: {},
+    superCombos: {},
     st: { kills: 0, dmg: 0, taken: 0, revives: 0, gems: 0 },
-    S: base.S
+    S: s
   };
 }
 
@@ -71,37 +81,81 @@ function resetRoom(r) {
     wave: 0, toSpawn: 0, spawnCd: 0, waveDelay: 0.8,
     paused: false, pausedBy: -1, recorded: false
   });
+  r.pl = r.pl.filter(p => !p.disconnected);
   r.pl.forEach((p, i) => {
     Object.assign(p, createPlayer(p.ws, i, {
-      userId: p.userId, name: p.name, skin: p.skin, rank: p.rank
+      userId: p.userId,
+      rejoinKey: p.rejoinKey,
+      name: p.name,
+      skin: p.skin,
+      rank: p.rank,
+      elo: p.elo
     }));
   });
 }
 
-function damagePlayer(p, rawDmg) {
+function damagePlayer(r, p, rawDmg) {
   const linkRed = p.linked === 2 ? 0.12 : (p.linked === 1 ? 0.05 : 0);
-  const totalRed = Math.min(0.65, (p.S.armor || 0) + linkRed);
+  const totalRed = Math.min(0.78, (p.S.armor || 0) + linkRed);
   const dmg = rawDmg * (1 - totalRed);
-  p.hp -= dmg;
+  p.S.hp -= dmg;
   p.inv = 0.75;
   p.st.taken += dmg;
-  if (p.hp <= 0) { p.hp = 0; p.down = 1; p.rev = 0; p.revBy = 0; }
+  if (p.i !== undefined) r.ev.push([Math.round(p.x), Math.round(p.y), 11, p.i]);
+  if (p.S.hp <= 0) {
+    p.S.hp = 0;
+    p.down = 1;
+    p.rev = 0;
+    p.revBy = 0;
+  }
 }
 
 function getEffectiveDmgMult(p) {
   const linkMult = p.linked === 2 ? 1.25 : (p.linked === 1 ? 1.10 : 1);
-  const berserkMult = (p.S.berserk && p.hp < p.max * 0.5) ? 1.13 : 1;
-  return p.S.dmg * linkMult * berserkMult;
+  return p.S.dmg * linkMult;
+}
+
+function autoPickChoice(r, p) {
+  if (!p.ch || !p.ch.length) return;
+  applyUpgrade(r, p, p.ch[0]);
+  p.inv = Math.max(p.inv, 0.6);
+  p.pend = Math.max(0, p.pend - 1);
+  if (p.pend > 0) offerUpgrades(p, r.lvl);
+  else {
+    p.ch = null;
+    p.pickTimer = 0;
+  }
 }
 
 function tickRoom(r, onVictory) {
   if (r.st !== "play" || !r.pl.length) return;
+
+  // Purge des joueurs déconnectés depuis plus de RECONNECT_GRACE secondes
+  const now = Date.now();
+  const beforeLen = r.pl.length;
+  r.pl = r.pl.filter(p => !p.disconnected || (now - p.disconnectTime < RECONNECT_GRACE * 1000));
+  if (r.pl.length !== beforeLen) {
+    r.pl.forEach((p, idx) => { p.i = idx; });
+    if (r.pl.length === 0) return;
+  }
+
+  // Décompte automatique de 15 s sur les choix d'améliorations en attente
+  for (const p of r.pl) {
+    if (p.ch !== null) {
+      p.pickTimer -= DT;
+      if (p.pickTimer <= 0) {
+        autoPickChoice(r, p);
+      }
+    }
+  }
+
   if (r.paused || r.pl.some(p => p.ch !== null)) return;
 
   r.t += DT;
   const pl = r.pl;
   const al = pl.filter(p => !p.down);
   const pRate = 1 + (pl.length - 1) * 0.12;
+  const diff = DIFFICULTIES[r.diff] || DIFFICULTIES.medium;
 
   r.links = [];
   for (const p of pl) p.linked = 0;
@@ -134,29 +188,43 @@ function tickRoom(r, onVictory) {
     p.x = Math.max(p.r, Math.min(W - p.r, p.x + p.dx * k * sp * DT));
     p.y = Math.max(p.r, Math.min(H - p.r, p.y + p.dy * k * sp * DT));
     p.inv -= DT; p.dsh -= DT; p.dc -= DT;
-    p.hp = Math.min(p.max, p.hp + (p.S.regen + regenBonus) * DT);
-    p.lsBank = Math.min(4.5, p.lsBank + 4.5 * DT);
+    p.S.hp = Math.min(p.S.maxHp, p.S.hp + (p.S.regen + regenBonus) * DT);
+    p.lsBank = Math.min(12, p.lsBank + 12 * DT);
     p.cd -= DT;
 
-    // Aura de givre
-    if (p.S.frost > 0) {
-      const fr = (92 + p.S.frost * 22) * p.S.frostRad;
+    // Aura de givre : ralentit et déclenche Critiques, Vol de vie et Onde de choc
+    if (p.S.frostR > 0) {
+      const fr = p.S.frostR;
       const fr2 = fr * fr;
-      const fDmg = 0.55 * p.S.dmg * p.S.frost;
+      const baseFrostDmg = Math.max(1.2, (p.S.frostDmg * 0.14) * p.S.dmg);
+      let hitCountInZone = 0;
+
       for (const e of r.E) {
-        if (dist2(p.x, p.y, e.x, e.y) <= fr2) {
-          e.slow = 0.2;
+        if (e.hp > 0 && dist2(p.x, p.y, e.x, e.y) <= fr2) {
+          e.slow = 0.25;
           e.slowVal = Math.max(e.slowVal, p.S.frostSlow);
-          if (doFrostTick) hitEnemy(r, e, fDmg, p.i, false);
+          if (doFrostTick) {
+            hitCountInZone++;
+            const isCrit = p.S.crit > 0 && Math.random() < p.S.crit;
+            const dmgDealt = isCrit ? baseFrostDmg * p.S.critMult : baseFrostDmg;
+            hitEnemy(r, e, dmgDealt, p.i, isCrit);
+          }
+        }
+      }
+
+      if (doFrostTick && hitCountInZone > 0 && p.S.nova > 0) {
+        p.frostPulses = (p.frostPulses + 1) % 256;
+        if (p.frostPulses % p.S.novaEvery === 0) {
+          triggerNova(r, p.x, p.y, p);
         }
       }
     }
 
-    // Drone autonome (Ingénieur)
+    // Drones autonomes
     if (p.S.drone > 0 && r.E.length) {
       p.droneCd -= DT;
       if (p.droneCd <= 0) {
-        p.droneCd = 1.05 / p.S.drone;
+        p.droneCd = 0.95 / p.S.drone;
         let target = null, bestD2 = 1e9;
         for (const e of r.E) {
           const d2 = dist2(e.x, e.y, p.x, p.y);
@@ -168,13 +236,13 @@ function tickRoom(r, onVictory) {
           r.B.push({
             x: p.x, y: p.y - 16, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v,
             l: 1.0, p: 0, bn: p.S.bounce, h: [], o: p.i,
-            d: getEffectiveDmgMult(p) * 0.65, hv: 0, cr: p.S.crit, cm: p.S.critMult, nv: 0
+            d: getEffectiveDmgMult(p) * 0.72, hv: 0, cr: p.S.crit, cm: p.S.critMult, nv: 0
           });
         }
       }
     }
 
-    // Tir principal (angle resserré pour éviter tout trou central en nombre pair)
+    // Tir principal
     if (p.cd <= 0 && r.E.length) {
       let n = null, nd = 1e9;
       for (const e of r.E) {
@@ -183,7 +251,7 @@ function tickRoom(r, onVictory) {
       }
       const an = Math.atan2(n.y - p.y, n.x - p.x);
       const dm = getEffectiveDmgMult(p);
-      const hasHeavy = p.combos.some(c => c.id === 0) || p.supers.length > 0 || full;
+      const hasHeavy = (p.combos[0] || 0) > 0 || Object.keys(p.superCombos).length > 0 || full;
       const bSpd = 460 * p.S.projSpd;
       p.sc = (p.sc + 1) % 256;
       const isNova = (p.S.nova > 0 && (p.sc % p.S.novaEvery === 0)) ? 1 : 0;
@@ -198,11 +266,12 @@ function tickRoom(r, onVictory) {
           cr: p.S.crit, cm: p.S.critMult, nv: (i === 0 ? isNova : 0)
         });
       }
+      r.ev.push([Math.round(p.x), Math.round(p.y), 10, p.i]);
       p.cd = 0.52 / (p.S.rate * rateMult);
     }
   }
 
-  // Projectiles joueurs avec collision continue par segment (anti-projectiles fantômes)
+  // Projectiles joueurs (collision continue par segment)
   const bounceMax2 = 245 * 245;
   for (const b of r.B) {
     const prevX = b.x;
@@ -252,7 +321,7 @@ function tickRoom(r, onVictory) {
   }
   r.B = r.B.filter(b => b.l > 0);
 
-  updateEnemies(r, al, pRate, damagePlayer);
+  updateEnemies(r, al, pRate, (t, rawDmg) => damagePlayer(r, t, rawDmg));
 
   r.E = r.E.filter(e => {
     if (e.hp > 0) return true;
@@ -266,7 +335,7 @@ function tickRoom(r, onVictory) {
         p.rerolls = Math.min(5, (p.rerolls || 0) + 1);
         if (!p.ch) offerUpgrades(p, r.lvl);
         if (p.down) { p.down = 0; p.rev = 0; p.revBy = 0; p.inv = 4.0; }
-        p.hp = Math.min(p.max, Math.max(p.hp, p.max * 0.5) + p.max * 0.35);
+        p.S.hp = Math.min(p.S.maxHp, Math.max(p.S.hp, p.S.maxHp * 0.5) + p.S.maxHp * 0.35);
       }
     }
     return false;
@@ -275,10 +344,10 @@ function tickRoom(r, onVictory) {
   // Réanimation avec immunité
   const revRad2 = 62 * 62;
   for (const d of pl) if (d.down) {
-    const helpers = al.filter(p => !p.down && dist2(p.x, p.y, d.x, d.y) < revRad2);
+    const helpers = al.filter(p => !p.down && !p.disconnected && dist2(p.x, p.y, d.x, d.y) < revRad2);
     if (helpers.length > 0) {
       let revBonus = 1 + (helpers.length - 1) * 0.85;
-      for (const h of helpers) revBonus += h.S.revSpd;
+      for (const h of helpers) revBonus += (h.S.revivePower || 0);
       d.rev += DT * revBonus;
       d.revBy = helpers.length;
     } else {
@@ -286,7 +355,7 @@ function tickRoom(r, onVictory) {
       d.revBy = 0;
     }
     if (d.rev >= 2.2) {
-      d.down = 0; d.hp = d.max * 0.65; d.inv = 4.0; d.rev = 0; d.revBy = 0;
+      d.down = 0; d.S.hp = d.S.maxHp * 0.65; d.inv = 4.0; d.rev = 0; d.revBy = 0;
       for (const h of helpers) { h.st.revives++; h.inv = Math.max(h.inv, 1.2); }
     }
   }
@@ -327,18 +396,22 @@ function tickRoom(r, onVictory) {
     }
   }
 
-  // Lames orbitales
+  // Lames orbitales massives et éloignées
   const live = pl.filter(p => !p.down);
-  for (const p of live) if (p.S.orb) {
+  for (const p of live) if (p.S.orb > 0) {
+    const orbRad = p.S.orbRad || 62;
+    const hitPad = 12 * (p.S.orbSize || 1.0);
+    const bladeDmg = 2.4 * getEffectiveDmgMult(p) * (p.S.orbDmgMult || 1.0);
     for (let k = 0; k < p.S.orb; k++) {
-      const a = r.t * 3 * p.S.orbSpd + k * TAU / p.S.orb;
-      const bx = p.x + Math.cos(a) * 46;
-      const by = p.y + Math.sin(a) * 46;
-      for (const e of r.E) if (!(e.bc > 0)) {
-        const rad = e.r + 7;
+      const a = r.t * 3.1 * p.S.orbSpd + k * TAU / p.S.orb;
+      const bx = p.x + Math.cos(a) * orbRad;
+      const by = p.y + Math.sin(a) * orbRad;
+      for (const e of r.E) if (!(e.bc > 0) && e.hp > 0) {
+        const rad = e.r + hitPad;
         if (dist2(e.x, e.y, bx, by) < rad * rad) {
-          hitEnemy(r, e, 1.35 * p.S.dmg, p.i, false);
-          e.bc = 0.28;
+          const isCrit = p.S.crit > 0 && Math.random() < p.S.crit;
+          hitEnemy(r, e, isCrit ? bladeDmg * p.S.critMult : bladeDmg, p.i, isCrit);
+          e.bc = 0.18;
         }
       }
     }
@@ -351,7 +424,7 @@ function tickRoom(r, onVictory) {
     if (b.l <= 0) return false;
     for (const p of live) if (p.inv <= 0) {
       const rad = p.r + 5;
-      if (dist2(p.x, p.y, b.x, b.y) < rad * rad) { damagePlayer(p, b.d || 10); return false; }
+      if (dist2(p.x, p.y, b.x, b.y) < rad * rad) { damagePlayer(r, p, b.d || 10); return false; }
     }
     return true;
   });
@@ -359,9 +432,13 @@ function tickRoom(r, onVictory) {
   // Gemmes d'XP
   r.G = r.G.filter(g => {
     let n = null, nd2 = 1e12;
-    for (const p of live) { const d2 = dist2(g.x, g.y, p.x, p.y); if (d2 < nd2) { nd2 = d2; n = p; } }
+    for (const p of live) {
+      if (p.disconnected) continue;
+      const d2 = dist2(g.x, g.y, p.x, p.y);
+      if (d2 < nd2) { nd2 = d2; n = p; }
+    }
     if (!n) return true;
-    const pull = r.E.length === 0 && r.toSpawn === 0 ? 190 : 85 * n.S.magnet;
+    const pull = r.E.length === 0 && r.toSpawn === 0 ? 190 : n.S.magnet;
     if (nd2 < pull * pull) {
       const d = Math.sqrt(nd2) || 1;
       g.x += (n.x - g.x) / d * 340 * DT;
@@ -369,9 +446,9 @@ function tickRoom(r, onVictory) {
     }
     const pickR = n.r + 6;
     if (nd2 < pickR * pickR) {
-      r.xp += g.v * 1.15 * n.S.xpMult;
+      r.xp += g.v * 1.15 * n.S.xpMult * diff.xpMult;
       n.st.gems++;
-      if (n.S.gemHeal) n.hp = Math.min(n.max, n.hp + n.S.gemHeal);
+      r.ev.push([Math.round(n.x), Math.round(n.y), 12, n.i]);
       while (r.xp >= r.need) {
         r.xp -= r.need; r.lvl++; r.need = nextNeed(r.lvl, pl.length);
         for (const p of pl) { p.pend++; if (p.ch === null) offerUpgrades(p, r.lvl); }
@@ -401,75 +478,84 @@ function buildSnapshot(r, leaderboard) {
 
   const ended = (r.st === "over" || r.st === "win");
   const wd = (r.E.length === 0 && r.toSpawn === 0 && r.wave > 0 && r.wave < MAX_WAVE) ? Math.max(0, R(r.waveDelay * 10) / 10) : 0;
-  const theme = r.wave > 0 ? Math.floor((r.wave - 1) / 5) % MAP_THEMES.length : 0;
+  const theme = r.wave > 0 ? Math.floor((r.wave - 1) / 10) % MAP_THEMES.length : 0;
 
   const shared = {
-    t: "s", st: r.st, code: r.code, n: r.pl.length, th: theme,
+    t: "s", st: r.st, code: r.code, diff: r.diff || "medium", n: r.pl.length, th: theme,
     names: r.pl.map(p => p.name), skins: r.pl.map(p => p.skin), ranks: r.pl.map(p => p.rank),
     tm: R(r.t * 10) / 10, k: r.kills, l: r.lvl, xp: R(r.xp * 10) / 10, nd: r.need,
     lks: r.links, flk: r.fullLink, wv: r.wave, mw: MAX_WAVE,
     rem: r.E.length + r.toSpawn, wd, pz, mpz: r.paused ? 1 : 0, pby: r.pausedBy,
     bn: bName, bh: bHp, lb: ended ? leaderboard : null,
     stats: r.pl.map(p => ({
-      i: p.i, name: p.name, skin: p.skin, rank: p.rank, oldRank: p.oldRank, promoted: p.promoted,
+      i: p.i, name: p.name, skin: p.skin, rank: p.rank, elo: p.elo || 0, eloDelta: p.eloDelta || 0,
       kills: p.st.kills, dmg: R(p.st.dmg), taken: R(p.st.taken), rev: p.st.revives, gems: p.st.gems,
-      cmb: p.combos, sup: p.supers
+      cmb: Object.entries(p.combos).map(([id, lvl]) => ({ id: Number(id), lvl })),
+      sup: Object.keys(p.superCombos).map(id => ({ id: Number(id) }))
     })),
     p: r.pl.map(p => [
-      R(p.x), R(p.y), R(p.hp), p.max, p.down, R(p.rev * 100) / 100, p.inv > 0 ? 1 : 0, p.pend,
-      R(85 * p.S.magnet), R(Math.max(0, p.dc) * 10) / 10, p.S.orb, p.ch !== null ? 1 : 0,
-      p.dsh > 0 ? 1 : 0, p.sc, p.S.orbSpd, p.linked, p.skin, p.revBy || 0,
-      p.S.frost > 0 ? R((92 + p.S.frost * 22) * p.S.frostRad) : 0, p.st.kills, p.rank, p.S.drone
+      R(p.x), R(p.y), R(p.S.hp), R(p.S.maxHp), p.down, R(p.rev * 100) / 100, p.inv > 0 ? 1 : 0, p.pend,
+      R(p.S.magnet), R(Math.max(0, p.dc) * 10) / 10, p.S.orb, p.ch !== null ? 1 : 0,
+      p.dsh > 0 ? 1 : 0, p.sc, R(p.S.orbSpd * 100) / 100, p.linked, p.skin, p.revBy || 0,
+      R(p.S.frostR), p.st.kills, p.rank, p.S.drone,
+      R(p.S.orbRad || 62), R((p.S.orbSize || 1.0) * 100) / 100, p.disconnected ? 1 : 0
     ]),
     E: r.E.map(e => [R(e.x), R(e.y), e.k, R(e.hp / e.mh * 100), e.bk || 0, (e.dash > 0 || e.windup > 0 || e.spiral > 0) ? 1 : 0, e.slow > 0 ? 1 : 0]),
     B: r.B.map(x => [R(x.x), R(x.y), R(x.vx), R(x.vy), x.o, x.hv || 0]),
     G: r.G.map(g => [R(g.x), R(g.y)]),
     X: r.X.map(x => [R(x.x), R(x.y)]),
-    oa: R(r.t * 300) / 100, ev: r.ev
+    oa: R(r.t * 310) / 100, ev: r.ev
   };
   r.ev = [];
 
   const sharedPrefix = JSON.stringify(shared).slice(0, -1);
-  for (const p of r.pl) if (p.ws.readyState === 1) {
+  for (const p of r.pl) if (p.ws && p.ws.readyState === 1 && !p.disconnected) {
     const full = p.linked === 2;
     const rateM = full ? 1.22 : (p.linked === 1 ? 1.12 : 1);
     const linkRed = full ? 0.12 : (p.linked === 1 ? 0.05 : 0);
     const regenBonus = full ? 1.2 : (p.linked === 1 ? 0.4 : 0);
     const dmgEff = getEffectiveDmgMult(p);
     const personal = JSON.stringify({
-      me: p.i, myRank: p.rank, inv: p.invList, cmb: p.combos, sup: p.supers,
+      me: p.i, myRank: p.rank, myElo: p.elo || 0, rjKey: p.rejoinKey,
+      inv: p.inv,
+      cmb: Object.entries(p.combos).map(([id, lvl]) => ({ id: Number(id), lvl })),
+      sup: Object.keys(p.superCombos).map(id => ({ id: Number(id) })),
       rr: p.rerolls || 0,
+      pt: p.ch ? Math.max(0, Math.ceil(p.pickTimer)) : 0,
       stMe: {
-        hp: R(p.hp), maxHp: p.max,
+        hp: R(p.S.hp), maxHp: R(p.S.maxHp),
         dmg: R(dmgEff * 100) / 100,
         rate: R((p.S.rate * rateM / 0.52) * 10) / 10,
         multi: p.S.multi,
         pierce: p.S.pierce,
         bounce: p.S.bounce,
-        crit: Math.min(100, R(p.S.crit * 100)),
+        crit: Math.min(95, R(p.S.crit * 100)),
         critMult: R(p.S.critMult * 10) / 10,
         speed: R(p.S.speed * (full ? 1.08 : 1) * 100),
-        armor: Math.min(65, R((p.S.armor + linkRed) * 100)),
+        armor: Math.min(78, R((p.S.armor + linkRed) * 100)),
         regen: R((p.S.regen + regenBonus) * 10) / 10,
         lifesteal: R(p.S.lifesteal * 1000) / 10,
-        magnet: R(85 * p.S.magnet),
+        magnet: R(p.S.magnet),
         orb: p.S.orb,
+        orbRad: R(p.S.orbRad || 62),
+        orbDmg: R((p.S.orbDmgMult || 1) * 100),
         orbSpd: R(p.S.orbSpd * 100),
         nova: p.S.nova,
         novaEvery: p.S.novaEvery,
-        frostSlow: p.S.frost > 0 ? R(p.S.frostSlow * 100) : 0,
+        frostR: R(p.S.frostR),
+        frostSlow: p.S.frostR > 0 ? R(p.S.frostSlow * 100) : 0,
         corpseExp: R(p.S.corpseExp * 100),
         projSpd: R(p.S.projSpd * 100),
         xpMult: R(p.S.xpMult * 100),
         drone: p.S.drone
       },
-      ch: p.ch ? p.ch.map(c => [c.u, UPGRADES[c.u].title(c.r), UPGRADES[c.u].desc(c.r), getComboHint(p, c.u), c.r]) : null
+      ch: p.ch
     }).slice(1);
     p.ws.send(`${sharedPrefix},${personal}`);
   }
 }
 
 module.exports = {
-  nextNeed, isSkinTaken, findFreeSkin, buildPlayerStats,
+  isSkinTaken, findFreeSkin, buildPlayerStats,
   createPlayer, resetRoom, tickRoom, buildSnapshot
 };

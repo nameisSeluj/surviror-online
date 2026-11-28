@@ -1,5 +1,6 @@
-const { W, H, DT, TAU } = require("./constants");
+const { W, H, DT, DIFFICULTIES } = require("./constants");
 
+const TAU = Math.PI * 2;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const dist2 = (ax, ay, bx, by) => {
   const dx = ax - bx;
@@ -47,9 +48,10 @@ function shootEnemyBullet(r, x, y, vx, vy, dmg, l = 3.4) {
 
 function spawnBoss(r, forcedType) {
   const w = r.wave;
+  const diff = DIFFICULTIES[r.diff] || DIFFICULTIES.medium;
   const pCount = r.pl.length;
-  const nHp = 1 + (pCount - 1) * 0.55;
-  const nDmg = 1 + (pCount - 1) * 0.18;
+  const nHp = (1 + (pCount - 1) * 0.55) * diff.hpMult;
+  const nDmg = (1 + (pCount - 1) * 0.18) * diff.dmgMult;
   const scHp = bossHpScale(w);
   const scDmg = bossDmgScale(w);
   const bType = forcedType !== undefined ? forcedType : Math.floor((w / 5 - 1) % 5);
@@ -62,17 +64,16 @@ function spawnBoss(r, forcedType) {
     healCount: 0, vx: 0, vy: 0, slow: 0, slowVal: 0
   };
 
-  if (bType === 0) { e.hp = (145 + w * 24) * nHp * scHp; e.sp = 38; e.r = 32; e.d = 30 * nDmg * scDmg; }
-  else if (bType === 1) { e.hp = (120 + w * 20) * nHp * scHp; e.sp = 64; e.r = 26; e.d = 24 * nDmg * scDmg; }
+  if (bType === 0) { e.hp = (145 + w * 24) * nHp * scHp; e.sp = 38 * diff.spdMult; e.r = 32; e.d = 30 * nDmg * scDmg; }
+  else if (bType === 1) { e.hp = (120 + w * 20) * nHp * scHp; e.sp = 64 * diff.spdMult; e.r = 26; e.d = 24 * nDmg * scDmg; }
   else if (bType === 2) {
-    // Arpenteur (vague 15) : dégâts par munition fortement réduits
     e.hp = (130 + w * 21) * nHp * scHp;
-    e.sp = 34;
+    e.sp = 34 * diff.spdMult;
     e.r = 28;
     e.bd = 7.5 * nDmg * scDmg;
   }
-  else if (bType === 3) { e.hp = (160 + w * 25) * nHp * scHp; e.sp = 30; e.r = 34; }
-  else { e.hp = (200 + w * 30) * nHp * scHp; e.sp = 42; e.r = 36; e.d = 34 * nDmg * scDmg; e.bd = 15 * nDmg * scDmg; }
+  else if (bType === 3) { e.hp = (160 + w * 25) * nHp * scHp; e.sp = 30 * diff.spdMult; e.r = 34; }
+  else { e.hp = (200 + w * 30) * nHp * scHp; e.sp = 42 * diff.spdMult; e.r = 36; e.d = 34 * nDmg * scDmg; e.bd = 15 * nDmg * scDmg; }
 
   e.x = x; e.y = y; e.mh = e.hp; e.bc = 0;
   r.E.push(e);
@@ -80,9 +81,10 @@ function spawnBoss(r, forcedType) {
 
 function spawnEnemy(r) {
   const w = r.wave;
+  const diff = DIFFICULTIES[r.diff] || DIFFICULTIES.medium;
   const pCount = r.pl.length;
-  const nHp = 1 + (pCount - 1) * 0.32;
-  const nDmg = 1 + (pCount - 1) * 0.09;
+  const nHp = (1 + (pCount - 1) * 0.32) * diff.hpMult;
+  const nDmg = (1 + (pCount - 1) * 0.09) * diff.dmgMult;
   const scHp = mobHpScale(w);
   const scDmg = mobDmgScale(w);
   const [x, y] = edgePos(28);
@@ -109,23 +111,25 @@ function spawnEnemy(r) {
   else if (k === 9) e = { k: 9, r: 13, hp: (5.0 + w * 0.72) * nHp * scHp, sp: 38, xp: 3, d: 7 * nDmg * scDmg, sum: 3.8 };
   else e = { k: 0, r: 11, hp: (1.9 + w * 0.33) * nHp * scHp, sp: 62 + Math.min(w * 1.3, 28), xp: 1, d: 7 * nDmg * scDmg };
 
+  e.sp *= diff.spdMult;
   e.id = ++r.eid; e.x = x; e.y = y; e.mh = e.hp; e.bc = 0; e.slow = 0; e.slowVal = 0;
   r.E.push(e);
 }
 
 function explodeKamikaze(r, e) {
+  const diff = DIFFICULTIES[r.diff] || DIFFICULTIES.medium;
   r.ev.push([Math.round(e.x), Math.round(e.y), 6]);
-  const bd = e.bd || 8 * mobDmgScale(r.wave);
+  const bd = e.bd || 8 * mobDmgScale(r.wave) * diff.dmgMult;
   for (let i = 0; i < 6; i++) {
     const a = i * 1.0472;
     shootEnemyBullet(r, e.x, e.y, Math.cos(a) * 195, Math.sin(a) * 195, bd, 2.4);
   }
 }
 
-function triggerCorpseExplosion(r, x, y, owner) {
-  const rad = 64;
+function triggerCorpseExplosion(r, x, y, owner, victimMaxHp = 10) {
+  const rad = 72;
   const r2 = rad * rad;
-  const dmg = owner.S.dmg * owner.S.corpseExp;
+  const dmg = Math.max(owner.S.dmg * owner.S.corpseExp, victimMaxHp * owner.S.corpseExp * 0.35);
   r.ev.push([Math.round(x), Math.round(y), 7, rad]);
   for (const e of r.E) {
     if (e.hp > 0 && dist2(x, y, e.x, e.y) <= r2) {
@@ -146,35 +150,34 @@ function hitEnemy(r, e, dmg, ownerIdx, isCrit, fromExplosion = false) {
   if (owner.S.lifesteal > 0 && owner.lsBank > 0 && dealt > 0) {
     const heal = Math.min(owner.lsBank, dealt * owner.S.lifesteal);
     owner.lsBank -= heal;
-    owner.hp = Math.min(owner.max, owner.hp + heal);
+    owner.S.hp = Math.min(owner.S.maxHp, owner.S.hp + heal);
   }
 
   if (e.hp <= 0 && !e.dead) {
     e.dead = true;
     owner.st.kills++;
-    if (owner.S.soul && owner.st.kills % 6 === 0) {
-      owner.hp = Math.min(owner.max, owner.hp + 2);
-    }
     if (!fromExplosion && owner.S.corpseExp > 0) {
-      triggerCorpseExplosion(r, e.x, e.y, owner);
+      triggerCorpseExplosion(r, e.x, e.y, owner, e.mh);
     }
   }
 }
 
 function triggerNova(r, x, y, owner) {
-  const rad = Math.round((78 + owner.S.nova * 16) * owner.S.novaRad);
+  const rad = Math.round(88 + owner.S.nova * 22);
   const r2 = rad * rad;
-  const dmg = owner.S.dmg * (1.35 + 0.45 * owner.S.nova) * owner.S.novaPow;
+  const dmg = owner.S.dmg * (1.5 + 0.65 * owner.S.nova);
   r.ev.push([Math.round(x), Math.round(y), 7, rad]);
   for (const e of r.E) {
     if (e.hp > 0 && dist2(x, y, e.x, e.y) <= r2) {
-      hitEnemy(r, e, dmg, owner.i, false);
+      const isCrit = owner.S.crit > 0 && Math.random() < owner.S.crit;
+      hitEnemy(r, e, isCrit ? dmg * owner.S.critMult : dmg, owner.i, isCrit);
     }
   }
 }
 
 function updateEnemies(r, al, pRate, damagePlayer) {
   const pl = r.pl;
+  const diff = DIFFICULTIES[r.diff] || DIFFICULTIES.medium;
   for (const e of r.E) {
     if (e.slow > 0) {
       e.slow -= DT;
@@ -264,7 +267,6 @@ function updateEnemies(r, al, pRate, damagePlayer) {
           }
         }
       } else if (e.bk === 2) {
-        // Arpenteur (vague 15)
         const v = td < 220 ? 0 : e.sp * slowFactor;
         e.x += (t.x - e.x) / td * v * DT;
         e.y += (t.y - e.y) / td * v * DT;
@@ -304,18 +306,19 @@ function updateEnemies(r, al, pRate, damagePlayer) {
           }
         }
       } else if (e.bk === 3) {
-        // Matriarche (vague 20) : soin fortement réduit (0,5 %, max 4 fois, si > 6 sbires)
         e.x += (t.x - e.x) / td * e.sp * slowFactor * DT;
         e.y += (t.y - e.y) / td * e.sp * slowFactor * DT;
         e.sp2 -= DT * rMult;
         if (e.sp2 <= 0 && r.E.length < 55) {
           e.sp2 = 4.2;
-          const scHp = bossHpScale(r.wave), scDmg = bossDmgScale(r.wave), nHp = 1 + (pl.length - 1) * 0.55, nDmg = 1 + (pl.length - 1) * 0.18;
+          const scHp = bossHpScale(r.wave), scDmg = bossDmgScale(r.wave);
+          const nHp = (1 + (pl.length - 1) * 0.55) * diff.hpMult;
+          const nDmg = (1 + (pl.length - 1) * 0.18) * diff.dmgMult;
           for (let i = 0; i < 3; i++) {
             const sa = i * 2.09 + r.t;
             const sx = Math.max(20, Math.min(W - 20, e.x + Math.cos(sa) * 40));
             const sy = Math.max(20, Math.min(H - 20, e.y + Math.sin(sa) * 40));
-            const m = { id: ++r.eid, k: 1, r: 8, hp: (1.8 + r.wave * 0.2) * nHp * scHp, sp: 104, xp: 1, d: 8 * nDmg * scDmg, x: sx, y: sy, bc: 0, slow: 0, slowVal: 0 };
+            const m = { id: ++r.eid, k: 1, r: 8, hp: (1.8 + r.wave * 0.2) * nHp * scHp, sp: 104 * diff.spdMult, xp: 1, d: 8 * nDmg * scDmg, x: sx, y: sy, bc: 0, slow: 0, slowVal: 0 };
             m.mh = m.hp; r.E.push(m);
           }
           if (r.E.length > 6 && (e.healCount || 0) < 4) {
@@ -384,7 +387,7 @@ function updateEnemies(r, al, pRate, damagePlayer) {
         const v = e.chg < 0.45 ? 0 : e.sp * slowFactor;
         e.x += (t.x - e.x) / td * v * DT;
         e.y += (t.y - e.y) / td * v * DT;
-        if (e.chg <= 0) { e.chg = 3.0; e.dash = 0.40; e.vx = (t.x - e.x) / td * 320; e.vy = (t.y - e.y) / td * 320; }
+        if (e.chg <= 0) { e.chg = 3.0; e.dash = 0.40; e.vx = (t.x - e.x) / td * 320 * diff.spdMult; e.vy = (t.y - e.y) / td * 320 * diff.spdMult; }
       }
     } else if (e.k === 8) {
       const v = td < 250 ? 0 : e.sp * slowFactor;
@@ -394,7 +397,7 @@ function updateEnemies(r, al, pRate, damagePlayer) {
       if (e.sh <= 0) {
         e.sh = 2.6;
         const ba = Math.atan2(t.y - e.y, t.x - e.x);
-        const bd = e.bd || 8.5 * mobDmgScale(r.wave);
+        const bd = e.bd || 8.5 * mobDmgScale(r.wave) * diff.dmgMult;
         for (let i = -1; i <= 1; i++) shootEnemyBullet(r, e.x, e.y, Math.cos(ba + i * 0.22) * 185, Math.sin(ba + i * 0.22) * 185, bd, 3.2);
       }
     } else if (e.k === 9) {
@@ -404,11 +407,13 @@ function updateEnemies(r, al, pRate, damagePlayer) {
       e.sum -= DT;
       if (e.sum <= 0 && r.E.length < 45) {
         e.sum = 3.8;
-        const scHp = mobHpScale(r.wave), scDmg = mobDmgScale(r.wave), nHp = 1 + (pl.length - 1) * 0.32, nDmg = 1 + (pl.length - 1) * 0.09;
+        const scHp = mobHpScale(r.wave), scDmg = mobDmgScale(r.wave);
+        const nHp = (1 + (pl.length - 1) * 0.32) * diff.hpMult;
+        const nDmg = (1 + (pl.length - 1) * 0.09) * diff.dmgMult;
         for (let i = 0; i < 2; i++) {
           const a = Math.random() * TAU;
           const m = {
-            id: ++r.eid, k: 1, r: 8, hp: (1.2 + r.wave * 0.18) * nHp * scHp, sp: 98, xp: 1, d: 6 * nDmg * scDmg,
+            id: ++r.eid, k: 1, r: 8, hp: (1.2 + r.wave * 0.18) * nHp * scHp, sp: 98 * diff.spdMult, xp: 1, d: 6 * nDmg * scDmg,
             x: Math.max(18, Math.min(W - 18, e.x + Math.cos(a) * 26)),
             y: Math.max(18, Math.min(H - 18, e.y + Math.sin(a) * 26)),
             bc: 0, slow: 0, slowVal: 0
@@ -425,7 +430,7 @@ function updateEnemies(r, al, pRate, damagePlayer) {
         e.sh = (e.sh === undefined ? 2.2 : e.sh) - DT;
         if (e.sh <= 0) {
           e.sh = 2.4;
-          const bd = e.bd || 8 * mobDmgScale(r.wave);
+          const bd = e.bd || 8 * mobDmgScale(r.wave) * diff.dmgMult;
           shootEnemyBullet(r, e.x, e.y, (t.x - e.x) / td * 175, (t.y - e.y) / td * 175, bd, 3.2);
         }
       }
