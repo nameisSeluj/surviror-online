@@ -1,11 +1,13 @@
 {
   "name": "survivor-squad",
-  "version": "1.5.0",
+  "version": "1.7.0",
+  "description": "Jeu multijoueur coopératif de survie par vagues",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "pg": "^8.13.0",
     "ws": "^8.18.0"
   }
 }

@@ -1,91 +1,99 @@
-const {
-  MAX_COMBOS, MAX_SUPER, UPGRADES, COMBOS, findSuper, rollRarity
-} = require("./constants");
+const { UPGRADES, COMBOS, SUPER_COMBOS, RARITIES, PICK_TIMEOUT } = require("./constants");
 
-function offerUpgrades(p, lvl, excludeIds = []) {
-  let pool = UPGRADES.map((_, idx) => idx).filter(id => !excludeIds.includes(id));
-  if (pool.length < 3) pool = UPGRADES.map((_, idx) => idx);
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+function rollRarity(lvl) {
+  const bonus = Math.min(20, Math.floor(lvl * 0.5));
+  const weights = RARITIES.map((r, idx) => {
+    if (idx === 0) return Math.max(25, r.weight - bonus);
+    if (idx === 1) return r.weight + Math.floor(bonus * 0.5);
+    if (idx === 2) return r.weight + Math.floor(bonus * 0.35);
+    return r.weight + Math.floor(bonus * 0.15);
+  });
+  const total = weights.reduce((a, b) => a + b, 0);
+  let roll = Math.random() * total;
+  for (let i = 0; i < weights.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return i;
   }
-  p.ch = pool.slice(0, 3).map(u => ({ u, r: rollRarity(lvl) }));
+  return 0;
 }
 
-function rerollUpgrades(p, lvl) {
-  if (!p.ch || (p.rerolls || 0) <= 0) return false;
-  const prev = p.ch.map(c => c.u);
-  p.rerolls--;
-  offerUpgrades(p, lvl, prev);
-  return true;
-}
-
-function getComboHint(p, uIdx) {
-  const nextCnt = (p.invList[uIdx] || 0) + 1;
-  for (const c of COMBOS) {
-    const pos = c.req.indexOf(uIdx);
-    if (pos === -1) continue;
-    const otherIdx = c.req[1 - pos];
-    const otherCnt = p.invList[otherIdx] || 0;
-    const targetLvl = Math.min(nextCnt, otherCnt);
-    if (targetLvl <= 0) continue;
-
-    const existing = p.combos.find(x => x.id === c.id);
-    const curLvl = existing ? existing.lvl : (p.fusedLvl[c.id] || 0);
-    if (targetLvl <= curLvl) continue;
-
-    if (existing) {
-      return { txt: `★ ${c.name} N.${targetLvl}`, type: "cmb" };
+function getUpgradeHint(player, uIdx) {
+  for (const cmb of COMBOS) {
+    if (!cmb.req.includes(uIdx)) continue;
+    const other = cmb.req[0] === uIdx ? cmb.req[1] : cmb.req[0];
+    if ((player.inv[other] || 0) > 0) {
+      const curLvl = player.combos[cmb.id] || 0;
+      const nextLvl = curLvl + 1;
+      for (const sup of SUPER_COMBOS) {
+        if (sup.req.includes(cmb.id) && !player.superCombos[sup.id]) {
+          const otherCmb = sup.req[0] === cmb.id ? sup.req[1] : sup.req[0];
+          if ((player.combos[otherCmb] || 0) >= 1) {
+            return { type: "sup", txt: `FUSION : ${sup.name}` };
+          }
+        }
+      }
+      return { type: "fuse", txt: `COMBO : ${cmb.name} N.${nextLvl}` };
     }
-    if (p.combos.length === 1 && p.supers.length < MAX_SUPER) {
-      const sc = findSuper(p.combos[0].id, c.id);
-      if (sc) return { txt: `✦ FUSION : ${sc.name}`, type: "fuse" };
-    }
-    if (p.combos.length < MAX_COMBOS) {
-      return { txt: `★ COMBO : ${c.name}`, type: "cmb" };
-    }
-    return { txt: "Emplacements combos pleins", type: "full" };
+    return { type: "hint", txt: `Synergie : ${UPGRADES[other].short}` };
   }
   return null;
 }
 
-function applyUpgrade(r, p, choice) {
-  const { u, r: rar } = choice;
-  UPGRADES[u].apply(p, rar);
-  p.invList[u] = (p.invList[u] || 0) + 1;
+function offerUpgrades(player, lvl) {
+  const pool = UPGRADES.map((_, idx) => idx);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const picked = pool.slice(0, 3);
+  player.ch = picked.map(uIdx => {
+    const rarIdx = rollRarity(lvl);
+    const rar = RARITIES[rarIdx];
+    const up = UPGRADES[uIdx];
+    const hint = getUpgradeHint(player, uIdx);
+    return [uIdx, up.short, up.desc(rar.mult), hint, rarIdx];
+  });
+  player.pickTimer = PICK_TIMEOUT;
+}
 
-  for (const c of COMBOS) {
-    if (!c.req.includes(u)) continue;
-    const targetLvl = Math.min(p.invList[c.req[0]] || 0, p.invList[c.req[1]] || 0);
-    if (targetLvl <= 0) continue;
+function rerollUpgrades(player, lvl) {
+  if (!player.ch || player.rerolls <= 0) return false;
+  player.rerolls -= 1;
+  offerUpgrades(player, lvl);
+  return true;
+}
 
-    const existing = p.combos.find(x => x.id === c.id);
-    const prevLvl = existing ? existing.lvl : (p.fusedLvl[c.id] || 0);
-    if (targetLvl <= prevLvl) continue;
+function applyUpgrade(room, player, choice) {
+  const uIdx = choice[0];
+  const rarIdx = choice[4] || 0;
+  const rar = RARITIES[rarIdx] || RARITIES[0];
+  const up = UPGRADES[uIdx];
+  if (!up) return;
 
-    if (existing) {
-      existing.lvl = targetLvl;
-      c.apply(p);
-      r.ev.push([Math.round(p.x), Math.round(p.y), 5, p.i]);
-    } else if (p.combos.length < MAX_COMBOS) {
-      p.combos.push({ id: c.id, lvl: targetLvl });
-      c.apply(p);
-      r.ev.push([Math.round(p.x), Math.round(p.y), 5, p.i]);
+  up.apply(player.S, rar.mult);
+  player.inv[uIdx] = (player.inv[uIdx] || 0) + 1;
 
-      if (p.combos.length === 2 && p.supers.length < MAX_SUPER) {
-        const [cA, cB] = p.combos;
-        const sc = findSuper(cA.id, cB.id);
-        if (sc) {
-          p.fusedLvl[cA.id] = cA.lvl;
-          p.fusedLvl[cB.id] = cB.lvl;
-          p.combos = [];
-          p.supers.push({ id: sc.id });
-          sc.apply(p);
-          r.ev.push([Math.round(p.x), Math.round(p.y), 6, p.i]);
-        }
-      }
+  for (const cmb of COMBOS) {
+    if (!cmb.req.includes(uIdx)) continue;
+    const c0 = player.inv[cmb.req[0]] || 0;
+    const c1 = player.inv[cmb.req[1]] || 0;
+    const targetLvl = Math.min(c0, c1);
+    const curLvl = player.combos[cmb.id] || 0;
+    if (targetLvl > curLvl) {
+      player.combos[cmb.id] = targetLvl;
+      cmb.apply(player.S, targetLvl);
+      room.ev.push([player.x, player.y, 5, player.i]);
+    }
+  }
+
+  for (const sup of SUPER_COMBOS) {
+    if (player.superCombos[sup.id]) continue;
+    if ((player.combos[sup.req[0]] || 0) >= 1 && (player.combos[sup.req[1]] || 0) >= 1) {
+      player.superCombos[sup.id] = 1;
+      sup.apply(player.S);
+      room.ev.push([player.x, player.y, 6, player.i]);
     }
   }
 }
 
-module.exports = { offerUpgrades, rerollUpgrades, getComboHint, applyUpgrade };
+module.exports = { offerUpgrades, rerollUpgrades, applyUpgrade };
